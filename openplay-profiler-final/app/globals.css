@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: #f8f8f6;
+  color: #1a1a1a;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+}
+
+/* Scrollbar sutil */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Plotly overrides */
+.js-plotly-plot .plotly .modebar { opacity: 0.4; }
+.js-plotly-plot .plotly .modebar:hover { opacity: 1; }

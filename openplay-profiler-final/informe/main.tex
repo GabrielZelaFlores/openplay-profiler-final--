@@ -1,0 +1,243 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{cite}
+\usepackage{geometry}
+\usepackage{hyperref}
+
+\geometry{margin=2.5cm}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+
+\title{\textbf{OpenPlay Profiler: an\'alisis visual, vector de caracter\'isticas y clustering}}
+\author{
+Juan Jos\'e Huaman\'i V\'asquez\\
+Zela Flores Gabriel Frank
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Este informe presenta un an\'alisis exploratorio del dataset OpenPlay orientado a identificar perfiles de jugadores a partir de variables de comportamiento de juego, bienestar, telemetr\'ia, cognici\'on y uso del tiempo. El flujo propuesto utiliza un vector de caracter\'isticas, reducci\'on dimensional mediante UMAP y clustering con K-means. Los grupos obtenidos se interpretan mediante las variables originales que m\'as los diferencian del promedio general.
+\end{abstract}
+
+\noindent\textbf{Palabras clave:} OpenPlay, videojuegos, bienestar digital, UMAP, K-means, clustering, visualizaci\'on anal\'itica.
+
+\section{Introducci\'on}
+
+Los videojuegos son una actividad digital masiva y generan datos sobre frecuencia de uso, plataformas, sesiones, horarios y respuestas de los usuarios. En este contexto, el estudio OpenPlay recopila telemetr\'ia de juego de plataformas como Nintendo Switch, Steam y Xbox, junto con medidas psicol\'ogicas y de bienestar como WEMWBS, PROMIS, GDT y BANGS, adem\'as de variables de motivaci\'on y cognici\'on \cite{openplay}. Adem\'as, la Organizaci\'on Mundial de la Salud define el trastorno por videojuegos como un patr\'on de comportamiento caracterizado por control deteriorado, prioridad creciente del juego y continuidad pese a consecuencias negativas \cite{who}. Por ello, analizar datos de juego y bienestar es un problema relevante tanto a nivel social como computacional.
+
+El problema de ciencia de datos abordado consiste en identificar perfiles de jugadores dentro de un conjunto de datos multidimensional. En este informe, los perfiles exploratorios son agrupamientos preliminares de participantes con valores similares en las variables analizadas; se denominan exploratorios porque sirven para describir patrones y generar hip\'otesis, no para establecer diagn\'osticos ni categor\'ias definitivas. Espec\'ificamente, se busca reconocer qu\'e participantes tienen comportamientos similares y qu\'e variables explican la separaci\'on entre grupos. Una anomal\'ia se entiende como un participante o subgrupo con valores alejados del patr\'on general, por ejemplo, sesiones nocturnas muy superiores al promedio o baja cobertura de registros frente al resto de la muestra.
+
+Para abordar el problema se construye un vector de caracter\'isticas por participante. Este vector integra variables demogr\'aficas, bienestar, riesgo de juego problem\'atico, telemetr\'ia, actividad diaria, cognici\'on y uso del tiempo. La selecci\'on de estas dimensiones responde a la estructura del dataset OpenPlay y permite comparar participantes usando una representaci\'on com\'un. Antes del agrupamiento, las variables se revisan y estandarizan para reducir el efecto de escalas diferentes y facilitar la comparaci\'on entre atributos.
+
+El objetivo del proyecto es identificar y caracterizar perfiles exploratorios de jugadores en OpenPlay mediante reducci\'on dimensional y clustering. La herramienta \textit{OpenPlay Profiler} se usa como apoyo para ejecutar el flujo de an\'alisis, observar la proyecci\'on bidimensional y comparar los grupos encontrados. Los resultados no se presentan como diagn\'osticos cl\'inicos, sino como agrupamientos exploratorios que pueden servir a investigadores, analistas de comportamiento y dise\~nadores de experiencias digitales para formular hip\'otesis sobre patrones de juego y bienestar.
+
+\section{Trabajos relacionados}
+
+El proyecto se apoya en trabajos previos relacionados con videojuegos, bienestar digital, detecci\'on de riesgo y construcci\'on de perfiles de usuarios. Estos estudios muestran que el comportamiento de juego puede analizarse desde distintas fuentes de datos, como encuestas, registros de uso, indicadores psicol\'ogicos y telemetr\'ia.
+
+\subsection{Trabajos relacionados con modelos}
+
+Hossain et al. proponen un dataset multidimensional sobre comportamiento de juego en estudiantes, con el objetivo de relacionar h\'abitos de juego con bienestar y rendimiento acad\'emico \cite{hossain}. Este enfoque es relevante porque muestra la importancia de integrar variables de distintas dimensiones para analizar el impacto del juego.
+
+Ozyirmidokuz et al. plantean un marco de aprendizaje autom\'atico para la detecci\'on temprana de adicci\'on a videojuegos digitales \cite{gameaddicted}. Su trabajo se relaciona con este proyecto porque utiliza variables de comportamiento para identificar posibles se\~nales de riesgo.
+
+Skalka et al. proponen la construcci\'on de personas de usuario a partir de logs de juego, utilizando extracci\'on de caracter\'isticas, reducci\'on dimensional y clustering \cite{skalka}. Este trabajo es especialmente cercano a la propuesta, porque busca obtener perfiles interpretables a partir de comportamiento registrado.
+
+\subsection{Trabajos relacionados con visualizaci\'on anal\'itica}
+
+En visualizaci\'on anal\'itica, los sistemas interactivos permiten explorar datos multivariados, comparar grupos y detectar patrones que no son evidentes en tablas. Para este proyecto, la visualizaci\'on es importante porque ayuda a observar similitudes entre participantes, separar grupos y relacionar los clusters con variables originales.
+
+\begin{table}[H]
+\centering
+\caption{Resumen de trabajos relacionados}
+\begin{tabularx}{\textwidth}{p{3cm} p{3.5cm} p{4cm} X}
+\toprule
+\textbf{Trabajo} & \textbf{Problema} & \textbf{M\'etodo} & \textbf{Relaci\'on con el proyecto} \\
+\midrule
+Hossain et al. & Relaci\'on entre juego, bienestar y rendimiento & Dataset multidimensional y an\'alisis de correlaciones & Justifica integrar variables de comportamiento y bienestar. \\
+Ozyirmidokuz et al. & Detecci\'on de riesgo de adicci\'on digital & Machine learning supervisado & Aporta el enfoque de usar datos de comportamiento para detectar riesgo. \\
+Skalka et al. & Construcci\'on de perfiles de jugadores con logs & Extracci\'on de caracter\'isticas, PCA y K-means & Se relaciona directamente con el uso de vector de caracter\'isticas y clustering. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Modelos}
+
+El modelo propuesto no busca predecir una etiqueta cl\'inica, sino descubrir patrones y perfiles exploratorios en los datos. Para ello se utilizan tres componentes principales: vector de caracter\'isticas, reducci\'on dimensional y clustering.
+
+\subsection{Vector de caracter\'isticas}
+
+El vector de caracter\'isticas representa a cada participante mediante variables seleccionadas del dataset. Su funci\'on es convertir informaci\'on heterog\'enea en una representaci\'on comparable. En este proyecto se integran variables de demograf\'ia, bienestar, riesgo de juego problem\'atico, telemetr\'ia, actividad diaria, cognici\'on y uso del tiempo.
+
+\subsection{Reducci\'on dimensional con UMAP}
+
+UMAP se utiliza para proyectar el vector de caracter\'isticas en dos dimensiones \cite{umap}. Esta proyecci\'on permite visualizar participantes similares como puntos cercanos y participantes diferentes como puntos alejados. Los ejes UMAP 1 y UMAP 2 no representan variables originales, sino una s\'intesis de similitud calculada a partir del conjunto de caracter\'isticas.
+
+\subsection{Clustering con K-means}
+
+K-means agrupa los puntos de la proyecci\'on bidimensional en cuatro clusters \cite{kmeans}. Cada cluster contiene participantes con posiciones cercanas en el espacio UMAP. Los colores del gr\'afico representan los grupos detectados por el algoritmo; no indican categor\'ias predefinidas, sino perfiles encontrados a partir de los datos.
+
+\section{Descripci\'on general del sistema}
+
+\subsection{Descripci\'on de los datos}
+
+El dataset utilizado es \texttt{openplay\_consolidated.csv}, que contiene variables asociadas a participantes del estudio OpenPlay. Incluye datos demogr\'aficos, escalas de bienestar, riesgo de juego problem\'atico, telemetr\'ia de plataformas, registros de actividad diaria, tareas cognitivas y uso del tiempo.
+
+\subsection{Preprocesamiento}
+
+Antes del an\'alisis se revisan los tipos de datos, valores faltantes, variables disponibles y estad\'isticas descriptivas. Las variables num\'ericas se estandarizan para evitar que aquellas con escalas mayores dominen el c\'alculo de similitud. Adem\'as, se eval\'ua el vector seleccionado considerando cantidad de variables, cobertura, faltantes y correlaciones altas.
+
+\subsection{Tareas de an\'alisis}
+
+\begin{itemize}
+    \item \textbf{T1:} Explorar la estructura general del dataset para conocer variables, dimensiones y calidad de datos.
+    \item \textbf{T2:} Evaluar un vector de caracter\'isticas que represente adecuadamente a cada participante.
+    \item \textbf{T3:} Proyectar participantes en dos dimensiones para observar similitudes, separaciones y posibles grupos.
+    \item \textbf{T4:} Identificar clusters de jugadores y caracterizarlos mediante variables originales.
+\end{itemize}
+
+\subsection{Pipeline del sistema}
+
+El flujo del sistema sigue cinco pasos: carga del dataset, revisi\'on exploratoria, selecci\'on del vector de caracter\'isticas, proyecci\'on UMAP y clustering con K-means. Finalmente, los grupos se interpretan comparando las variables originales que m\'as se alejan del promedio general.
+
+\section{Dise\~no visual}
+
+El sistema \textit{OpenPlay Profiler} organiza el an\'alisis en vistas interactivas. Cada vista apoya una tarea espec\'ifica del proceso de ciencia de datos y permite pasar desde la revisi\'on del dataset hasta la interpretaci\'on de perfiles.
+
+\begin{table}[H]
+\centering
+\caption{Relaci\'on entre vistas visuales y tareas anal\'iticas}
+\begin{tabularx}{\textwidth}{p{3.5cm} p{4cm} p{3cm} X}
+\toprule
+\textbf{Vista} & \textbf{Qu\'e muestra} & \textbf{Tarea} & \textbf{Interacci\'on} \\
+\midrule
+Carga y profiling & Dataset, columnas, tipos de datos y faltantes & T1 & Carga de archivo y revisi\'on de resumen. \\
+Vector de caracter\'isticas & Variables seleccionadas y evaluaci\'on del vector & T2 & Selecci\'on de variables y vector recomendado. \\
+Proyecci\'on 2D & Participantes representados en UMAP & T3 & Exploraci\'on visual, zoom y selecci\'on. \\
+Clustering & Grupos coloreados y tabla de clusters & T4 & Cambio de algoritmo, selecci\'on de puntos e interpretaci\'on. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Metodolog\'ia y resultados}
+
+El proceso seguido en la herramienta se organiz\'o en cinco etapas:
+
+\begin{enumerate}
+    \item \textbf{Carga de datos:} se utiliz\'o el archivo consolidado \texttt{openplay\_consolidated.csv}.
+    \item \textbf{Profiling:} se revisaron variables, tipos de datos, valores faltantes y estad\'isticas descriptivas.
+    \item \textbf{Vector de caracter\'isticas:} se seleccion\'o un vector integral recomendado para representar el proyecto.
+    \item \textbf{Reducci\'on dimensional:} se aplic\'o UMAP para obtener una proyecci\'on en dos dimensiones.
+    \item \textbf{Clustering:} se aplic\'o K-means con cuatro grupos sobre la proyecci\'on UMAP.
+\end{enumerate}
+
+\subsection{Vector de caracter\'isticas}
+
+El vector seleccionado integra variables de distintas dimensiones del dataset. Esta selecci\'on permite representar a cada participante desde una perspectiva amplia, evitando que el an\'alisis dependa \'unicamente de variables de salud mental o de telemetr\'ia.
+
+\begin{table}[H]
+\centering
+\caption{Dimensiones consideradas en el vector de caracter\'isticas}
+\begin{tabular}{p{4cm} p{10cm}}
+\toprule
+\textbf{Dimensi\'on} & \textbf{Variables representativas} \\
+\midrule
+Base del participante & Edad, n\'umero de plataformas, n\'umero de plataformas con telemetr\'ia. \\
+Bienestar y salud mental & WEMWBS, PROMIS. \\
+Riesgo de juego problem\'atico & GDT, BANGS. \\
+Telemetr\'ia de juego & Sesiones totales, sesiones nocturnas, tiempo de juego en Steam, juegos \'unicos. \\
+Actividad diaria & D\'ias jugados, d\'ias con estr\'es reportado. \\
+Cognici\'on & Precisi\'on media y tiempo de respuesta medio. \\
+Uso del tiempo & Entradas relacionadas con juego y n\'umero de d\'ias registrados. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{vector_caracteristicas.png}
+    \caption{Selecci\'on y evaluaci\'on del vector de caracter\'isticas.}
+    \label{fig:vector}
+\end{figure}
+
+\subsection{Resultados de clustering}
+
+Para la segmentaci\'on se utiliz\'o K-means sobre la proyecci\'on UMAP. La herramienta detect\'o cuatro grupos con una distribuci\'on razonable de participantes, por lo que pueden analizarse como perfiles exploratorios.
+
+\begin{table}[H]
+\centering
+\caption{Distribuci\'on de participantes por cluster}
+\begin{tabular}{lc}
+\toprule
+\textbf{Cluster} & \textbf{Participantes} \\
+\midrule
+Cluster 4 & 977 \\
+Cluster 1 & 628 \\
+Cluster 3 & 546 \\
+Cluster 2 & 393 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{umap_clusters.png}
+    \caption{Proyecci\'on UMAP con clustering K-means de cuatro grupos.}
+    \label{fig:umapclusters}
+\end{figure}
+
+\subsection{Interpretaci\'on de los clusters}
+
+Los ejes UMAP 1 y UMAP 2 no representan variables originales, sino una s\'intesis visual de similitud entre participantes. Por ello, los clusters no se explican solo por su ubicaci\'on en el gr\'afico, sino por las variables originales que m\'as los diferencian del promedio general. En la interpretaci\'on, el s\'imbolo $\sigma$ indica desviaciones est\'andar: valores positivos muestran que el grupo est\'a por encima del promedio y valores negativos muestran que est\'a por debajo.
+
+\begin{itemize}
+    \item \textbf{Cluster 4: perfil de actividad gaming registrada y concentrada.} Este grupo tiene 977 participantes. Se diferencia por presentar m\'as entradas de uso del tiempo relacionadas con videojuegos (\texttt{timeuse\_gaming\_entries}: $+0.68\sigma$) y m\'as d\'ias registrados (\texttt{timeuse\_num\_days}: $+0.67\sigma$). Tambi\'en muestra mayor tiempo reciente de juego en Steam, aunque utiliza menos plataformas que el promedio. Esto sugiere un perfil con actividad de juego frecuente y bien registrada, pero no necesariamente multiplataforma.
+    
+    \item \textbf{Cluster 1: perfil de baja trazabilidad y mayor malestar reportado.} Este grupo tiene 628 participantes. Se caracteriza por menos d\'ias de uso del tiempo (\texttt{timeuse\_num\_days}: $-0.86\sigma$), menos entradas relacionadas con videojuegos (\texttt{timeuse\_gaming\_entries}: $-0.68\sigma$) y menos plataformas con telemetr\'ia. Adem\'as, presenta valores superiores en \texttt{promis\_total} y mayor tiempo de respuesta cognitivo. Esto indica un perfil con menor cantidad de registros de actividad y posibles se\~nales de mayor malestar.
+    
+    \item \textbf{Cluster 3: perfil multiplataforma con alta cobertura de datos.} Este grupo tiene 546 participantes. Se diferencia principalmente por tener m\'as plataformas con telemetr\'ia (\texttt{num\_telemetry\_platforms}: $+1.28\sigma$) y m\'as plataformas en general (\texttt{num\_platforms}: $+0.76\sigma$). Tambi\'en tiene m\'as d\'ias y entradas de uso del tiempo. Esto sugiere jugadores con mayor presencia en distintas plataformas y mejor cobertura de datos.
+    
+    \item \textbf{Cluster 2: perfil de alta intensidad y juego nocturno.} Este grupo tiene 393 participantes. Se caracteriza por m\'as sesiones nocturnas (\texttt{telem\_nocturnal\_sessions}: $+1.12\sigma$) y m\'as sesiones totales (\texttt{telem\_total\_sessions}: $+1.08\sigma$). Tambi\'en presenta una edad mayor al promedio y m\'as d\'ias registrados. Por ello se interpreta como un perfil de jugadores con mayor intensidad de actividad y presencia de juego nocturno.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{interpretacion_clusters.png}
+    \caption{Interpretaci\'on de clusters mediante variables originales del vector.}
+    \label{fig:interpretacionclusters}
+\end{figure}
+
+\section{Discusi\'on}
+
+Los resultados muestran que el clustering permite distinguir perfiles de jugadores m\'as espec\'ificos que una simple separaci\'on visual por colores. La interpretaci\'on por variables originales es fundamental, porque permite explicar por qu\'e un grupo se separa de otro. Por ejemplo, algunos clusters se diferencian por actividad nocturna, otros por cobertura de telemetr\'ia y otros por cantidad de registros de uso del tiempo.
+
+Una limitaci\'on importante es que los clusters dependen del vector de caracter\'isticas seleccionado y de los par\'ametros de UMAP y K-means. Por ello, los grupos no deben considerarse categor\'ias definitivas. Su valor principal est\'a en apoyar la exploraci\'on y generar hip\'otesis sobre patrones de comportamiento que podr\'ian analizarse posteriormente con m\'etodos estad\'isticos o predictivos.
+
+\section{Conclusiones}
+
+El proyecto permiti\'o identificar perfiles exploratorios de jugadores en el dataset OpenPlay mediante un flujo de ciencia de datos basado en selecci\'on de variables, reducci\'on dimensional y clustering. El vector de caracter\'isticas fue clave para representar a cada participante de manera integral, considerando dimensiones de juego, bienestar, telemetr\'ia, cognici\'on y uso del tiempo.
+
+El uso de UMAP facilit\'o observar la estructura general de los participantes en dos dimensiones, mientras que K-means permiti\'o formar cuatro grupos interpretables. La revisi\'on de variables originales permiti\'o caracterizar los clusters como perfiles de actividad gaming registrada, baja trazabilidad con mayor malestar, alta cobertura multiplataforma y alta intensidad con juego nocturno.
+
+\begin{thebibliography}{00}
+\bibitem{openplay} N. Ballou et al., ``Open Play: A longitudinal dataset of multi-platform video game digital trace data and psychological measures,'' 2026. [Online]. Available: https://www.researchgate.net/publication/397614989
+\bibitem{who} World Health Organization, ``Addictive behaviours: Gaming disorder,'' 2020. [Online]. Available: https://www.who.int/news-room/questions-and-answers/item/addictive-behaviours-gaming-disorder
+\bibitem{hossain} M. I. Hossain, L. A. Amin, M. U. Emon, P. V. Chauhan, A. Rudrabatla, and F. Quader, ``A multidimensional dataset of student gaming behavior and academic correlates in Bangladesh,'' \textit{Scientific Data}, 2025.
+\bibitem{gameaddicted} E. K. Ozyirmidokuz, B. A. Celik, and E. A. Stoica, ``\#GAMEADDICTED: A machine learning framework for digital game addiction detection, and early intervention,'' \textit{IEEE Access}, 2025.
+\bibitem{skalka} J. Skalka, M. Drl\'ik, D. Halvon\'ik, P. Kuna, and M. Valko, ``Anchored log-based user personas: A typology-guided framework for clustering gameplay behavior,'' \textit{IEEE Access}, 2026.
+\bibitem{umap} L. McInnes, J. Healy, and J. Melville, ``UMAP: Uniform Manifold Approximation and Projection for dimension reduction,'' 2018.
+\bibitem{kmeans} J. MacQueen, ``Some methods for classification and analysis of multivariate observations,'' in \textit{Proc. Fifth Berkeley Symposium on Mathematical Statistics and Probability}, 1967, pp. 281--297.
+\end{thebibliography}
+
+\end{document}

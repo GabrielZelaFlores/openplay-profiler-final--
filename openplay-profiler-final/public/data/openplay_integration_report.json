@@ -1,0 +1,78 @@
+{
+  "zipFile": "OpenPlay-20260609T233203Z-3-001.zip",
+  "filesDetected": [
+    "biweekly.csv",
+    "cognitive_tasks_raw.csv.gz",
+    "games.csv.gz",
+    "master_table_openplay_core_v3.csv",
+    "survey_biweekly_raw.csv.gz",
+    "survey_daily_raw.csv.gz",
+    "survey_intake_raw.csv.gz",
+    "telemetry_android_raw.csv.gz",
+    "telemetry_ios_raw.csv.gz",
+    "telemetry_nintendo_raw.csv.gz",
+    "telemetry_steam_account_linking_raw.csv.gz",
+    "telemetry_steam_owned_games_raw.csv.gz",
+    "telemetry_steam_raw.csv.gz",
+    "telemetry_xbox_raw.csv.gz",
+    "timeuse_raw.csv.gz"
+  ],
+  "filesUsed": [
+    "survey_intake_raw.csv.gz",
+    "survey_biweekly_raw.csv.gz",
+    "survey_daily_raw.csv.gz",
+    "telemetry_android_raw.csv.gz",
+    "telemetry_ios_raw.csv.gz",
+    "telemetry_xbox_raw.csv.gz",
+    "telemetry_nintendo_raw.csv.gz",
+    "telemetry_steam_raw.csv.gz",
+    "telemetry_steam_owned_games_raw.csv.gz",
+    "telemetry_steam_account_linking_raw.csv.gz",
+    "cognitive_tasks_raw.csv.gz",
+    "timeuse_raw.csv.gz"
+  ],
+  "filesNotUsed": [
+    "biweekly.csv",
+    "master_table_openplay_core_v3.csv",
+    "games.csv.gz"
+  ],
+  "joinKeys": {
+    "primary": "pid",
+    "source": "survey_intake_raw.csv.gz",
+    "criteria": "qualified==TRUE"
+  },
+  "aggregations": {
+    "survey_biweekly": "First wave per participant (minimum wave number)",
+    "survey_daily": "Count/sum aggregations",
+    "telemetry_android": "Sum/mean of daily gaming minutes",
+    "telemetry_ios": "Sum/mean of daily gaming minutes",
+    "telemetry_nintendo": "Session count, total duration, mean/max session, unique games, nocturnal sessions",
+    "telemetry_xbox": "Session count, total duration, mean/max session, unique games, nocturnal sessions",
+    "telemetry_steam": "Max playtime (2w and forever), unique game count",
+    "telemetry_steam_owned": "Owned games count, total playtime forever",
+    "cognitive_tasks": "Mean RT, mean accuracy, task count",
+    "timeuse": "Entry count, day count, gaming entries"
+  },
+  "rowsPerSource": {
+    "survey_intake_raw.csv.gz": 35369,
+    "survey_biweekly_raw.csv.gz": 7313,
+    "survey_daily_raw.csv.gz": 18829,
+    "telemetry_android_raw.csv.gz": 2576,
+    "telemetry_ios_raw.csv.gz": 3633,
+    "telemetry_steam_account_linking_raw.csv.gz": 568316,
+    "cognitive_tasks_raw.csv.gz": 247756,
+    "timeuse_raw.csv.gz": 183280,
+    "telemetry_xbox_raw.csv.gz": 4902000,
+    "telemetry_nintendo_raw.csv.gz": 756519,
+    "telemetry_steam_raw.csv.gz": 1046613,
+    "telemetry_steam_owned_games_raw.csv.gz": 666403
+  },
+  "participantsDetected": 2544,
+  "finalRows": 2544,
+  "finalColumns": 186,
+  "warnings": [
+    "master_table_openplay_core_v3.csv: No pid column - cannot join to participants.",
+    "biweekly.csv: Data dictionary file, not participant data.",
+    "games.csv.gz: Reference table only, no pid column."
+  ]
+}

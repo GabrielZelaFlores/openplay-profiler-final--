@@ -1,0 +1,41 @@
+{
+  "name": "openplay-profiler",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "build:data": "tsx scripts/build-openplay-dataset.ts"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.503.0",
+    "next": "^16.2.9",
+    "pako": "^2.1.0",
+    "papaparse": "^5.5.3",
+    "plotly.js": "^3.6.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-plotly.js": "^3.0.0",
+    "umap-js": "^1.4.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/adm-zip": "^0.5.8",
+    "@types/node": "^20",
+    "@types/pako": "^2.0.4",
+    "@types/papaparse": "^5.5.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/react-plotly.js": "^2.6.3",
+    "adm-zip": "^0.5.17",
+    "tailwindcss": "^4",
+    "tsx": "^4.19.3",
+    "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "^8.5.15"
+  }
+}

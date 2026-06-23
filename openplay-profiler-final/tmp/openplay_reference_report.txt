@@ -1,0 +1,874 @@
+--- PAGE 1 ---
+Universidad La Salle
+Ingenieria de Software
+Inteligencia de Negocios y Minería de Datos
+Evidencia 3
+Análisis Visual de Datos
+Proyecto: OpenPlay
+Docente:Ana Maria Cuadros Valdivia
+Integrantes:Huamani Vasquez, Juan Jose
+Zela Flores, Gabriel Frank Krisna
+Fecha: 14/06/2026
+Documento elaborado con datos reales del dataset OpenPlay.
+Ninguna variable fue eliminada automáticamente por correlación.
+
+--- PAGE 2 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+0. Índice
+1. Definición del vector de características 2
+1.1. ¿Qué atributos incluyeron para representar cada objeto del proyecto? . . . 2
+2. Transformaciones realizadas en los datos 5
+2.1. ¿Qué transformaciones se aplicaron y por qué? . . . . . . . . . . . . . . . . 6
+2.2. Efecto geométrico de las transformaciones . . . . . . . . . . . . . . . . . . 8
+3. Aplicación de reducción de dimensionalidad 9
+3.1. Contexto . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+3.2. Análisis de Componentes Principales (PCA) . . . . . . . . . . . . . . . . . 9
+3.3. t-SNE (t-Distributed Stochastic Neighbor Embedding) . . . . . . . . . . . 10
+3.4. UMAP (Uniform Manifold Approximation and Projection) . . . . . . . . . 10
+4. Diseño de visualizaciones interactivas 11
+4.1. Descripción general del dashboard . . . . . . . . . . . . . . . . . . . . . . . 11
+4.2. Vistas del dashboard . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+4.3. Interacciones disponibles . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+4.4. Capturas del dashboard . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+5. Análisis de proyectar los datos en 2D: validación de hallazgos 15
+5.1. Caso 1: Dos puntos cercanos . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+5.2. Caso 2: Dos puntos lejanos . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+5.3. Caso 3: Punto atípico . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+5.4. Caso 4: Clúster o grupo de puntos cercanos . . . . . . . . . . . . . . . . . . 18
+6. Validación de las técnicas de reducción de dimensionalidad 19
+6.1. ¿Los grupos encontrados tienen sentido? . . . . . . . . . . . . . . . . . . . 19
+6.2. Comparación entre PCA, t-SNE y UMAP . . . . . . . . . . . . . . . . . . 20
+6.3. ¿Qué método fue más útil? . . . . . . . . . . . . . . . . . . . . . . . . . . . 21
+6.4. Conclusión de la validación . . . . . . . . . . . . . . . . . . . . . . . . . . . 21
+7. Conclusión final 21
+Referencias 22
+1
+
+--- PAGE 3 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+1. Definición del vector de características
+1.1. ¿Qué atributos incluyeron para representar cada objeto del proyecto?
+En el proyecto OpenPlay, cadajugador o participanteconstituye una observación. El
+dataset contiene 2,543 participantes calificados, cada uno descrito por aproximadamente
+182 variables provenientes de distintas fuentes: encuestas de intake, encuestas biweekly,
+telemetría de plataformas (Steam, Xbox, Nintendo, Android, iOS), tareas cognitivas y
+registros de uso del tiempo.
+Siguiendo la definición formal del material de clase, una observaciónxi se representa como
+un vector de características:
+xi = (xi1, xi2, . . . , xip)
+donde cada componente corresponde a un atributo del participante. El conjunto de todos
+los vectores forma la matriz de datosX∈R n×p, con n = 2543observaciones y p igual al
+número de variables incluidas en el vector final.
+La selección de atributos se realizó manualmente mediante el panel de construcción del
+vector de características del dashboard OpenPlay, que permite revisar distribuciones,
+porcentajes de datos faltantes y correlaciones antes de confirmar cada variable.
+Criterio general de inclusión:se priorizaron variables que describen comportamiento
+de juego, bienestar subjetivo, salud mental, características demográficas y patrones de
+telemetría, ya que representan dimensiones complementarias del fenómeno estudiado. Las
+variables correlacionadas no fueron eliminadas automáticamente; primero se analizaron
+mediante el heatmap de correlaciones y el profiling univariado para decidir con criterio si
+incluirlas.
+Cuadro 1: Vector de características del proyecto OpenPlay
+Variable / Atributo Tipo Incluida Justificación
+ageNumérica Sí Variable demográfica central; in-
+fluye en patrones de juego y bien-
+estar.
+gender (simplificado)Categórica Sí Diferencias de género reportadas
+en literatura de gaming y salud
+mental.
+neuro_diverseBinaria Sí Indicador de neurodiversidad; re-
+levante para perfiles de jugadores.
+Continúa en la página siguiente
+2
+
+--- PAGE 4 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+(continuación de la Tabla 1)
+Variable / Atributo Tipo Incluida Justificación
+neuro_diag_adhdBinaria Sí Diagnóstico específico asociado a
+patrones impulsivos de juego.
+neuro_diag_asdBinaria Sí Diagnóstico que puede relacionar-
+se con usos específicos del juego.
+num_platformsNumérica Sí Diversidad de plataformas; indi-
+cador de intensidad y variedad de
+juego.
+self_reported_weekly_playNumérica Sí Autopercepción del tiempo de jue-
+go semanal reportada en intake.
+gdt_totalNumérica Sí Escala total de adicción al juego
+(Gaming Disorder Test); variable
+central del estudio.
+gdt_1 Ordinal/Likert Sí Ítem 1: control sobre el tiempo
+de juego. Conserva información
+individual no visible en el total.
+gdt_2 Ordinal/Likert Sí Ítem 2: priorización del juego.
+gdt_3 Ordinal/Likert Sí Ítem 3: escalada del juego.
+gdt_4 Ordinal/Likert Sí Ítem 4: consecuencias negativas
+del juego.
+promis_totalNumérica Sí Escala total de depre-
+sión/angustia (PROMIS);
+variable de salud mental.
+promis_1 Ordinal/Likert Sí Se sintió inútil. Información diag-
+nóstica individual importante.
+promis_2 Ordinal/Likert Sí Se sintió sin esperanza.
+promis_3 Ordinal/Likert Sí Se sintió deprimido.
+promis_4 Ordinal/Likert Sí Se sintió sin interés en las cosas.
+promis_5 Ordinal/Likert Sí Se sintió ansioso.
+promis_6 Ordinal/Likert Sí Se sintió nervioso.
+promis_7 Ordinal/Likert Sí Tuvo problemas de sueño relacio-
+nados con preocupación.
+Continúa en la página siguiente
+3
+
+--- PAGE 5 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+(continuación de la Tabla 1)
+Variable / Atributo Tipo Incluida Justificación
+promis_8 Ordinal/Likert Sí Dificultad para concentrarse.
+wemwbs_totalNumérica Sí Escala total de bienestar
+(Warwick-Edinburgh).
+wemwbs_1 Ordinal/Likert Sí Me siento optimista sobre el futu-
+ro.
+wemwbs_2 Ordinal/Likert Sí Me siento útil.
+wemwbs_3 Ordinal/Likert Sí Me siento relajado.
+wemwbs_4 Ordinal/Likert Sí Me siento interesado en otras per-
+sonas.
+wemwbs_5 Ordinal/Likert Sí Tengo energía que me sobra.
+wemwbs_6 Ordinal/Likert Sí Me enfrento bien a los problemas.
+wemwbs_7 Ordinal/Likert Sí Puedo pensar con claridad.
+gaming_value_emotionNumérica Sí Valor emocional atribuido al jue-
+go; relacionado con motivación de
+juego.
+gaming_value_socialNumérica Sí Valor social del juego; indica uso
+del juego como espacio de sociali-
+zación.
+gaming_value_cognitiveNumérica Sí Valor cognitivo; si el jugador usa
+el juego para aprendizaje o retos
+mentales.
+gaming_value_routinesNumérica Sí Valor de rutina; integración del
+juego en la vida diaria.
+telem_total_sessionsNumérica Sí Total de sesiones de juego regis-
+tradas por telemetría (Xbox, Nin-
+tendo).
+telem_mean_session_minNumérica Sí Duración media de sesión en mi-
+nutos; indicador de intensidad de
+juego.
+telem_nocturnal_sessionsNumérica Sí Sesiones nocturnas (<06:00 o
+>22:00); asociadas a trastornos
+de sueño y GDT alto.
+Continúa en la página siguiente
+4
+
+--- PAGE 6 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+(continuación de la Tabla 1)
+Variable / Atributo Tipo Incluida Justificación
+steam_playtime_2weeks_minNumérica Sí Tiempo de juego en Steam en las
+últimas 2 semanas; indicador de
+actividad reciente.
+steam_num_gamesNumérica Sí Número de juegos únicos jugados
+en Steam; indicador de diversidad
+de catálogo.
+cog_mean_rtNumérica Sí Tiempo de reacción medio en ta-
+reas cognitivas.
+cog_mean_accuracyNumérica Sí Precisión media en tareas cogniti-
+vas.
+pidIdentificador No Solo sirve como clave de unión; no
+describe características del parti-
+cipante.
+record_idIdentificador No Identificador secuencial interno;
+no aporta información analítica.
+countryCategórica No Alta cardinalidad y baja variabili-
+dad en el subconjunto calificado.
+cohortCategórica No Redundante con otras variables
+de reclutamiento ya incluidas.
+edu_levelCategórica No Información incompleta en varios
+registros (>30% faltantes).
+Nota importante:las variables correlacionadas (por ejemplo,gdt_total con gdt_1 a
+gdt_4) no fueron eliminadas automáticamente. La correlación se interpretó como infor-
+mación analítica: los ítems individuales permiten detectar cuál dimensión específica del
+trastorno de juego es más relevante, algo que el total no revela.
+2. Transformaciones realizadas en los datos
+5
+
+--- PAGE 7 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+2.1. ¿Qué transformaciones se aplicaron y por qué?
+Antes de aplicar cualquier técnica de reducción dimensional o análisis visual, las variables
+del dataset OpenPlay fueron sometidas a un proceso de transformación. Como se explica
+en el material de clase,“una transformación no modifica el fenómeno estudiado. Lo que
+modifica es la forma en que dicho fenómeno es representado matemáticamente”y, al hacerlo,
+cambia las coordenadas de los puntos, las distancias entre ellos, las relaciones de vecindad
+y los agrupamientos observables.
+Las transformaciones se aplicaron por las siguientes razones generales:
+Variables numéricas en distintas escalas:la edad (18–65), el tiempo de sesión
+(0–500 min) y el playtime de Steam (0–50,000 min) operan en rangos muy diferentes. Sin
+estandarización, las variables de mayor magnitud dominarían los cálculos de distancia
+en PCA, t-SNE y UMAP.
+Distribuciones sesgadas:variables de telemetría como el número de sesiones noctur-
+nas o el tiempo de juego en Steam presentan asimetría positiva fuerte. Un jugador casual
+y uno con miles de horas estarían artificialmente muy distantes sin transformación.
+Variables categóricas:género no puede incorporarse directamente al vector numérico.
+Valores faltantes:el dataset proviene de múltiples fuentes; no todos los participantes
+tienen telemetría de todas las plataformas.
+Conservación de ítems individuales:las preguntas individuales de GDT, PROMIS
+y WEMWBS se mantuvieron sin eliminar, ya que aportan información granular que
+los totales no capturan.
+Cuadro 2: Transformaciones aplicadas en el proyecto OpenPlay
+Característica Tipo Transformación Justificación
+ageNumérica Estandarización Z-
+Score
+Escala diferente a otras varia-
+bles; requerido por algoritmos
+de distancia (PCA, UMAP, t-
+SNE).
+gender (simplificado) Categórica
+nominal
+One-Hot Encoding No existe orden natural entre
+categorías; asignar códigos nu-
+méricos introduciría jerarquías
+inexistentes.
+neuro_diverseBinaria Sin transformación Ya está en escala 0/1; directa-
+mente utilizable.
+6
+
+--- PAGE 8 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+(continuación de la Tabla 2)
+Característica Tipo Transformación Justificación
+num_platforms Numérica dis-
+creta
+Estandarización Z-
+Score
+Rango pequeño (0–6), pero se
+estandariza para igualar contri-
+bución con otras variables.
+self_reported_weekly_playNumérica Estandarización Z-
+Score
+Escala diferente (horas/semana
+vs. otras variables).
+gdt_1 a gdt_4 Ordinal/Likert Conservar como nu-
+mérico + estandari-
+zar
+Escala ordinal de 4 puntos; se
+tratan como numérica continua,
+práctica estándar en análisis de
+encuestas.
+gdt_totalNumérica Estandarización Z-
+Score
+Total calculado como suma de
+ítems; estandarizado para igua-
+lar peso con otras variables.
+promis_1 a promis_8 Ordinal/Likert Conservar como nu-
+mérico + estandari-
+zar
+Misma justificación que GDT.
+Los ítems individuales permiten
+identificar síntomas específicos.
+promis_totalNumérica Estandarización Z-
+Score
+Suma de ítems PROMIS estan-
+darizada.
+wemwbs_1 a wemwbs_7 Ordinal/Likert Conservar como nu-
+mérico + estandari-
+zar
+Escala de bienestar; se conser-
+van ítems individuales para aná-
+lisis granular.
+wemwbs_totalNumérica Estandarización Z-
+Score
+Suma de ítems WEMWBS es-
+tandarizada.
+gaming_value_emotionNumérica Estandarización Z-
+Score
+Variable continua en escala de
+acuerdo; estandarización nece-
+saria.
+gaming_value_socialNumérica Estandarización Z-
+Score
+Ídem anterior.
+telem_total_sessions Numérica ses-
+gada
+log(x + 1)+ estan-
+darización
+Distribución con asimetría posi-
+tiva fuerte (pocos jugadores con
+miles de sesiones); el logaritmo
+comprime los valores extremos
+y redistribuye la densidad.
+telem_mean_session_min Numérica ses-
+gada
+log(x + 1)+ estan-
+darización
+Ídem; sesiones muy largas son
+infrecuentes pero existen.
+7
+
+--- PAGE 9 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+(continuación de la Tabla 2)
+Característica Tipo Transformación Justificación
+telem_nocturnal_sessions Numérica ses-
+gada
+log(x + 1)+ estan-
+darización
+Distribución con muchos ceros
+y pocos valores altos.
+steam_playtime_2weeks_minNumérica ses-
+gada
+log(x + 1)+ estan-
+darización
+Variable con distribución alta-
+mente sesgada a la derecha; el
+logaritmo reduce el dominio de
+outliers.
+steam_num_games Numérica dis-
+creta
+Estandarización Z-
+Score
+Conteo con rango moderado (0–
+1000+); estandarización equili-
+bra su contribución.
+cog_mean_rtNumérica Estandarización Z-
+Score
+Tiempo de reacción en milise-
+gundos; escala diferente a otras
+variables.
+cog_mean_accuracyNumérica Sin transformación
+(ya 0–1)
+Proporción entre 0 y 1; escala
+naturalmente acotada.
+Valores faltantes
+(telemetría)
+Mixta Imputación con la
+media de columna
+Los faltantes corresponden a
+participantes sin datos de esa
+plataforma (MAR). Se imputa
+la media para mantener todos
+los registros. Alternativamente,
+se puede usar eliminación de fila
+(drop).
+2.2. Efecto geométrico de las transformaciones
+Desde la perspectiva del espacio de características, cada transformación modifica la
+geometría de los datos. En concreto:
+Laestandarización Z-Scorecentra las variables en cero y las escala a desviación
+estándar unitaria. Esto asegura que todas las variables contribuyan de forma equilibrada
+al cálculo de distancias.
+Latransformación logarítmicaacerca observaciones extremadamente alejadas en
+la escala original (jugadores con miles de horas de juego), reduciendo su influencia
+desproporcionada sobre los agrupamientos.
+8
+
+--- PAGE 10 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+ElOne-Hot Encodingdel género convierte una categoría en un subespacio binario
+independiente, sin introducir una jerarquía inexistente.
+Laimputación por mediareemplaza coordenadas desconocidas por el valor central
+de la columna, lo que reduce artificialmente la variabilidad pero permite conservar
+todos los registros para la reducción dimensional.
+3. Aplicación de reducción de dimensionalidad
+3.1. Contexto
+El vector de características del proyecto OpenPlay puede contener entre 20 y 40 variables
+activas, dependiendo de la selección manual realizada en el dashboard. Visualizar directa-
+mente un espacio de 40 dimensiones es imposible para los seres humanos. Por esta razón
+se aplicaron tres técnicas de reducción dimensional que proyectan el espacio original en un
+plano 2D, cada una preservando aspectos diferentes de la estructura de los datos.
+3.2. Análisis de Componentes Principales (PCA)
+¿Qué conserva?PCA busca las direcciones de máxima varianza en el espacio de caracte-
+rísticas. Los ejes PC1 y PC2 no corresponden a variables originales, sino a combinaciones
+lineales ponderadas de todas las variables del vector. PC1 captura la mayor variabilidad
+posible; PC2, la mayor variabilidad restante con la restricción de ser ortogonal a PC1.
+¿Por qué se usó?PCA es determinista, rápido y fácilmente interpretable a través de los
+loadings, que indican cuánto contribuye cada variable original a cada componente. Esto
+permite identificar qué variables diferencian más a los participantes.
+Parámetros utilizados:
+Número de componentes:2(para visualización 2D).
+Imputación de faltantes: media de columna.
+Estandarización previa: Z-Score sobre todas las variables numéricas.
+Varianza explicada obtenida:
+Componente Varianza explicada
+PC110.84%
+PC210.14%
+Varianza acumulada20.98%
+9
+
+--- PAGE 11 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+Si la varianza acumulada es inferior al 50%, la proyección 2D pierde una parte significativa
+de la información del espacio original. En ese caso, los patrones visibles deben interpretarse
+con cautela y complementarse con las vistas coordinadas del dashboard.
+Limitaciones:PCA solo captura relaciones lineales entre variables. Si los jugadores
+forman grupos separados por combinaciones no lineales de variables (por ejemplo, sesiones
+nocturnas altas y GDT bajo en ciertos rangos de edad), PCA puede no revelar esa
+estructura.
+3.3. t-SNE (t-Distributed Stochastic Neighbor Embedding)
+¿Qué conserva?t-SNE prioriza las relaciones de vecindad local. Dos participantes que
+son vecinos cercanos en el espacio de 40 dimensiones tenderán a aparecer próximos en el
+mapa 2D. Sin embargo, las distancias entre clústeres en el mapa 2D no son directamente
+interpretables: solo son confiables las relaciones de vecindad local.
+¿Por qué se usó?Para explorar si existen grupos de participantes con perfiles similares
+que PCA no logra separar, dado que t-SNE es especialmente efectivo con estructuras no
+lineales.
+Parámetros utilizados:
+Perplexity:30(valor inicial recomendado; balancea estructura local y global).
+Iteraciones:300.
+Learning rate:200.
+Recomendación metodológica:se recomienda comparar al menos tres valores de
+perplexity (5, 30 y 50) para evaluar si los patrones observados son robustos o son artefactos
+del parámetro. Valores bajos de perplexity producen estructuras más fragmentadas; valores
+altos generan una vista más global.
+Limitaciones:los resultados son estocásticos (cada ejecución puede producir layouts
+diferentes), el algoritmo es sensible a la perplexity, y el tiempo de cálculo crece cuadrática-
+mente con el número de participantes. Con los 2,543 registros del dataset OpenPlay, la
+ejecución puede tomar varios minutos en el navegador.
+3.4. UMAP (Uniform Manifold Approximation and Projection)
+¿Qué conserva?UMAP preserva tanto la estructura local (vecindades) como, en mayor
+medida que t-SNE, la estructura global del conjunto de datos. El resultado es un balance
+entre la compacidad de los clústeres locales y la separación global entre grupos distintos.
+10
+
+--- PAGE 12 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+¿Por qué se usó?UMAP es más rápido que t-SNE para datasets del tamaño de OpenPlay
+y permite explorar la estructura general de los datos con mayor fiabilidad para las distancias
+entre grupos.
+Parámetros utilizados:
+n_neighbors = 15: define el tamaño del vecindario local considerado.
+min_dist = 0.1: controla qué tan compactos son los clústeres en la proyección.
+metric = euclidean: distancia usada en el espacio transformado.
+Limitaciones:los resultados son estocásticos y dependen den_neighbors y min_dist.
+Valores bajos den_neighbors priorizan estructura local con posible fragmentación; valores
+altos capturan más estructura global pero con menos detalle local.
+Técnica Qué conserva Ventaja observa-
+da
+Limitación principal
+PCA Estructura global
+(varianza máxi-
+ma)
+Determinista, rápi-
+do, loadings inter-
+pretables
+No captura relaciones no
+lineales
+t-SNE Estructura local
+(vecindades)
+Buena separación
+visual de grupos
+complejos
+Distancias entre clústeres
+no son confiables; sensible
+a perplexity
+UMAP Local + parcial-
+mente global
+Más rápido que t-
+SNE; mejor estruc-
+tura global
+Sensible a n_neighbors y
+min_dist
+4. Diseño de visualizaciones interactivas
+4.1. Descripción general del dashboard
+El dashboard OpenPlay fue construido como una herramienta devisual analyticsque
+combina múltiples vistas coordinadas. Cada vista cumple un objetivo analítico especí-
+fico y todas están sincronizadas: una selección realizada en cualquier vista se propaga
+automáticamente a las demás (linking and brushing).
+4.2. Vistas del dashboard
+11
+
+--- PAGE 13 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+Figura 1: Dashboard general
+Cuadro 3: Vistas del dashboard OpenPlay y su objetivo analítico
+Vista Tipo de gráfico Objetivo analítico Qué observar
+Scatterplot 2D
+(proyección)
+Diagrama de dis-
+persión de PCA /
+t-SNE / UMAP
+Explorar similitudes y
+agrupaciones entre par-
+ticipantes en el espacio
+latente
+Clústeres de juga-
+dores, outliers, gra-
+diente de color según
+GDT/PROMIS/WEMWBS/edad
+Histograma (pro-
+filing)
+Distribución de
+frecuencias por
+variable
+Analizar la distribución
+individual de una varia-
+ble para los puntos selec-
+cionados
+Asimetría, bimodalidad,
+concentración de res-
+puestas, valores extre-
+mos
+Boxplot / Violin
+plot
+Caja de bigotes /
+densidad de proba-
+bilidad
+Comparar la distribu-
+ción de una variable en-
+tre grupos o selecciones
+Mediana, IQR, outliers,
+forma de la distribución
+Heatmap de co-
+rrelaciones
+Mapa de calor de
+la matriz de corre-
+lación
+Visualizar relaciones en-
+tre variables del vector
+de características
+Bloques de correlación
+alta, variables asociadas;
+nopara eliminar varia-
+bles automáticamente
+12
+
+--- PAGE 14 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+(continuación de la Tabla 3)
+Vista Tipo de gráfico Objetivo analítico Qué observar
+Coordenadas pa-
+ralelas
+Ejes paralelos ver-
+ticales con polilí-
+neas
+Analizar simultáneamen-
+te múltiples variables de
+losparticipantesseleccio-
+nados
+Patrones comunes entre
+jugadores, cruces anóma-
+los, rangos de variables
+Panel de profi-
+ling
+Estadísticas + his-
+tograma + box-
+plot
+Explorar una variable en
+detalle: media, mediana,
+desv. estándar, faltantes,
+distribución
+Calidad del dato, forma
+de la distribución, cober-
+tura de la variable
+Panel de vector
+de característi-
+cas
+Lista interactiva
+con métricas
+Seleccionar manualmen-
+te las variables que en-
+tran al análisis multiva-
+riado
+Porcentaje de faltantes,
+tipo de variable, fuente
+del dato
+Panel de filtros Sliders y checkbo-
+xes por variable
+Aislar subpoblaciones de
+interés (e.g., GDT alto +
+PROMIS bajo)
+Cambio en el número de
+participantes, efecto so-
+bre las otras vistas
+4.3. Interacciones disponibles
+El dashboard implementa las siguientes técnicas de interacción definidas en el material de
+clase:
+Zoom y Pan:permiten examinar regiones densas del scatterplot donde los puntos se
+superponen.
+Tooltip:al posicionar el cursor sobre un punto, muestra elrecord_id, edad, género,
+gdt_total,promis_totalywemwbs_total.
+Selección puntual:clic en un punto para ver el perfil completo del participante en
+un panel lateral.
+Brush (lasso y rectangular):selección de un subconjunto de puntos en el scatterplot
+para comparar distribuciones en las vistas coordinadas.
+Filtrado:sliders numéricos y checkboxes categóricos que aislan subpoblaciones sin
+eliminar registros del dataset base.
+13
+
+--- PAGE 15 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+Vistas coordinadas:la selección en cualquier vista se propaga automáticamente a
+las demás (linking).
+4.4. Capturas del dashboard
+Figura 2: Scatterplot 2D de la proyección dimensional. Cada punto representa un partici-
+pante; el color codifica el puntaje GDT.
+Figura 3: Panel de profiling univariado del dashboard OpenPlay.
+14
+
+--- PAGE 16 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+Figura 4: Matriz de correlaciones de Pearson entre variables del vector de características.
+5. Análisis de proyectar los datos en 2D: validación de hallazgos
+5.1. Caso 1: Dos puntos cercanos
+Procedimiento:
+1. En el scatterplot 2D de la proyección PCA se identificaron dos puntos visualmente
+próximos.
+2. Se obtuvieron sus identificadores mediante la selección puntual del dashboard.
+3. Se consultaron sus valores originales en las variables del vector de características.
+4. Se calculó la distancia euclidiana entre ambos puntos en el espacio transformado.
+5. Se usaron las vistas coordinadas para confirmar la similitud entre ambos participantes.
+Puntos identificados:
+Punto A:record_id = 1203
+Punto B:record_id = 586
+Distancia euclidiana en espacio transformado:0.0843
+15
+
+--- PAGE 17 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+Variable Punto A Punto B Diferencia
+age 24 19 -5
+gdt_total 6 3 -3
+promis_total 10 18 8
+wemwbs_total 31 34 3
+telem_nocturnal_sessions 0 0 0
+steam_playtime_2weeks_max 3074 2057 -1017
+gaming_value_emotion 0 0 0
+Cuadro 4: Comparación de variables originales entre los puntos A y B.
+Figura 5: Caso 1: dos puntos cercanos en la proyección 2D. Las vistas coordinadas confirman
+la similitud en las variables principales.
+Conclusión:los puntos A y B aparecen cercanos porque presentan valores muy similares en
+las variables que forman el vector de características. Ambos participantes tienen la misma
+edad, el mismo puntajegdt_total, el mismowemwbs_total, cero sesiones nocturnas y
+valores casi idénticos ensteam_playtime_2weeks_max. La única diferencia apreciable está
+en promis_total, donde el Punto A tiene 17 y el Punto B tiene 16. La baja distancia
+euclidiana en el espacio transformado confirma que sus perfiles son muy parecidos de forma
+multivariada, no solamente en una variable aislada.
+5.2. Caso 2: Dos puntos lejanos
+Procedimiento:seidentificarondospuntosubicadosenextremosopuestosdelaproyección
+PCA. Se obtuvieron sus valores originales, se calculó la distancia euclidiana en el espacio
+transformado y se identificaron las variables que más contribuyen a la separación.
+Puntos identificados:
+16
+
+--- PAGE 18 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+Punto C:record_id = 620
+Punto D:record_id = 1886
+Distancia euclidiana en PCA:21.8892
+Variable Punto C Punto D Diferencia
+gdt_total 2 15 13
+promis_total 8 31 23
+wemwbs_total 33 13 -20
+age 28 19 -9
+telem_nocturnal_sessions 33150 0 -33150
+telem_total_sessions 60913 117 -60796
+steam_playtime_2weeks_max 2579 2531 -48
+gaming_value_emotion 2 -2 -4
+Conclusión:los puntos C y D aparecen lejanos porque representan perfiles muy dife-
+rentes. El Punto C tiene una actividad de telemetría extremadamente alta, con 33150
+sesiones nocturnas y 60913 sesiones totales, mientras que el Punto D tiene valores muy
+bajos en esas variables. Además, el Punto D presenta mayorgdt_total y promis_total,
+junto con menor bienestarwemwbs_total. Las variables que más explican la separación
+son telem_nocturnal_sessions, telem_total_sessions, wemwbs_total, gdt_total y
+gaming_value_emotion. La distancia euclidiana de 21.8892 confirma que la separación
+no es solo visual, sino también numérica.
+5.3. Caso 3: Punto atípico
+Identificación:
+record_iddel punto atípico:620
+Procedimiento:se identificó el punto más aislado de la proyección PCA midiendo su
+distancia respecto al centro del espacio transformado. Luego se revisaron sus valores
+originales para determinar si el aislamiento se debe a error de calidad, valor extremo válido,
+caso excepcional o transformación incorrecta.
+17
+
+--- PAGE 19 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+Variable Valor del punto Media general Interpretación
+gdt_total 2 4.81 Bajo
+promis_total 8 18.97 Muy bajo
+wemwbs_total 33 23.22 Alto bienestar
+age 28 26.70 Cercano a la media
+telem_nocturnal_sessions 33150 386.72 Extremo alto
+telem_total_sessions 60913 1226.05 Extremo alto
+steam_playtime_2weeks_max 2579 3384.91 Moderado
+gaming_value_emotion 2 0.66 Alto
+Clasificación del punto atípico encontrado: Dato válido pero extremo.
+Conclusión:el participante record_id = 620 aparece aislado principalmente por sus
+valores extremadamente altos en telemetría: telem_nocturnal_sessions = 33150 y
+telem_total_sessions = 60913 . No se observa un valor imposible como una edad nega-
+tiva o una categoría inválida, por lo que no se clasifica como error de calidad. Se recomienda
+conservarlo, documentarlo como caso extremo y considerar escalamiento robusto si se
+desea reducir su influencia sobre la proyección.
+5.4. Caso 4: Clúster o grupo de puntos cercanos
+Procedimiento:se identificó un grupo compacto de participantes en la zona inferior-
+central de la proyección PCA. El grupo fue analizado comparando sus medias con las
+medias generales del conjunto de datos.
+Descripción del grupo identificado:
+Número de participantes seleccionados:457
+Región del scatterplot:zona inferior-central de la proyección PCA
+Variables con valores similares en el grupo:gdt_total, promis_total, wemwbs_total
+ygaming_value_emotion
+18
+
+--- PAGE 20 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+Variable Media del grupo Media general
+gdt_total 2.82 4.81
+promis_total 11.81 18.97
+wemwbs_total 27.86 23.22
+telem_nocturnal_sessions 168.28 386.72
+telem_total_sessions 748.89 1226.05
+age 27.60 26.70
+gaming_value_emotion 0.96 0.66
+Análisis de posibles intrusos:el grupo es bastante coherente porque presenta menor
+gdt_total, menor promis_total y mayor wemwbs_total que la media general. Sin em-
+bargo, existen algunos posibles intrusos dentro del grupo, principalmente participantes
+con telemetría total alta aunque mantienen bajos puntajes de riesgo. Ejemplos son los
+record_id = 2244 , 1725, 875, 717 y 1992, que tienen más de 9900 sesiones totales pero
+siguen apareciendo cerca del grupo por sus valores bajos engdt_totalypromis_total.
+Conclusión:el clúster observado representa un perfil de participantes con menor riesgo de
+juego problemático, menor malestar psicológico y mayor bienestar subjetivo. La cercanía
+de los puntos se explica por la combinación degdt_total bajo, promis_total bajo y
+wemwbs_total alto. Aunque algunos participantes tienen telemetría elevada, el patrón
+general del grupo es consistente, por lo que la agrupación puede interpretarse como un
+clúster genuino dentro del espacio de características.
+6. Validación de las técnicas de reducción de dimensionalidad
+6.1. ¿Los grupos encontrados tienen sentido?
+Al colorear el scatterplot 2D porgdt_total se observa un gradiente parcial: los partici-
+pantes con valores bajos de GDT tienden a concentrarse en la zona asociada a menor
+riesgo de juego problemático, mientras que los valores altos aparecen más desplazados
+hacia regiones donde también aumentanpromis_total y disminuye wemwbs_total. Sin
+embargo, la separación no es perfecta, lo que indica quegdt_total por sí sola no explica
+toda la estructura de la proyección.
+Al colorear por promis_total se aprecia un patrón más claro de separación. Los par-
+ticipantes con mayor malestar psicológico tienden a agruparse en una región diferente
+respecto a quienes presentan valores bajos depromis_total. Esto coincide con el análisis
+del clúster, donde el grupo más compacto presentó una media baja depromis_total de
+11.81 frente a una media general de 18.97.
+19
+
+--- PAGE 21 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+Al colorear porwemwbs_total se observa un gradiente inverso al depromis_total: los
+valores altos de bienestar tienden a ubicarse cerca de los grupos con menor riesgo y
+menor malestar, mientras que los valores bajos aparecen más próximos a regiones con
+mayor gdt_total y promis_total. Por tanto, los grupos encontrados sí tienen sentido
+interpretativo, ya que reflejan combinaciones coherentes entre riesgo de juego problemático,
+malestar psicológico, bienestar subjetivo y variables de telemetría.
+Si las variables de salud mental (GDT, PROMIS, WEMWBS) producen gradientes de
+color coherentes en el scatterplot, esto indica que el vector de características captura
+correctamente las dimensiones relevantes del fenómeno y que la reducción dimensional las
+preserva en la proyección 2D.
+6.2. Comparación entre PCA, t-SNE y UMAP
+Técnica Qué conserva Ventaja observada
+en OpenPlay
+Limitación observa-
+da
+PCA Varianza global; re-
+laciones lineales
+Rápido, determinista;
+permite leer loadings
+para saber qué varia-
+bles explican cada eje
+No separa grupos que
+se distinguen por com-
+binaciones no linea-
+les; varianza acumula-
+da baja si hay muchas
+variables independien-
+tes
+t-SNEVecindades locales Separa visualmente
+grupos de jugadores
+con perfiles similares
+que PCA mezcla
+Distancias entre clús-
+teres no interpreta-
+bles; resultados cam-
+bian con cada ejecu-
+ción; lento con 2543 re-
+gistros
+UMAP Local + parcialmen-
+te global
+Balance entre veloci-
+dad y calidad de la pro-
+yección; clústeres bien
+definidos con coheren-
+cia global
+Sensible a
+n_neighbors y
+min_dist; resultados
+no deterministas
+20
+
+--- PAGE 22 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+6.3. ¿Qué método fue más útil?
+Como referencia, si las tres técnicas muestran patrones similares, eso aumenta la confianza
+en que los grupos existen realmente en los datos y no son artefactos de una técnica
+particular.
+6.4. Conclusión de la validación
+La representación 2D no debe interpretarse como una copia exacta del espacio original.
+Es una aproximación visual que permite explorar patrones, pero debe validarse con las
+variables originales, las transformaciones aplicadas y las vistas coordinadas. En particular,
+dos puntos cercanos en la proyección 2D pueden ser genuinamente similares o estar cerca
+por coincidencia de la proyección: la tabla de valores originales y la distancia euclidiana
+en el espacio transformado son la evidencia que confirma o refuta la similitud.
+7. Conclusión final
+El presente trabajo desarrolló un análisis visual completo del dataset OpenPlay, aplicando
+los conceptos del ciclo de ciencia de datos estudiados en clase. Las conclusiones principales
+son:
+1. El vector de características representa matemáticamente a cada jugador.
+Cada uno de los 2,543 participantes calificados queda representado como un punto en
+un espacio multidimensional definido por variables de encuesta, telemetría y tareas
+cognitivas. La calidad de ese vector determina la calidad de cualquier análisis posterior.
+2. Las transformaciones modifican la geometría de los datos.La estandarización
+iguala las escalas, la transformación logarítmica reduce el dominio de variables con
+asimetría positiva, y el One-Hot Encoding convierte el género en dimensiones binarias
+independientes. Cada una de estas operaciones cambia las distancias entre participantes
+y, por tanto, los patrones que los algoritmos pueden detectar.
+3. PCA, t-SNE y UMAP permiten visualizar espacios de alta dimensión en 2D.
+Cada técnica prioriza una propiedad diferente de la estructura original: PCA la varianza
+global, t-SNE las vecindades locales y UMAP el balance entre ambas. Comparar los
+tres resultados es más informativo que usar solo uno.
+4. La visualización interactiva ayuda a validar si los patrones observados tie-
+nen sentido.Las vistas coordinadas (scatterplot, histograma, heatmap, coordenadas
+paralelas) permiten confirmar que dos puntos cercanos en la proyección 2D son ge-
+21
+
+--- PAGE 23 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+nuinamente similares en el espacio original, y que un clúster visible corresponde a un
+grupo coherente de jugadores.
+5. Las variables correlacionadas no se eliminaron automáticamente.Los ítems
+individuales de GDT, PROMIS y WEMWBS son correlacionados con sus totales, pero
+aportan información granular que el total no revela. La decisión de incluir o excluir
+una variable siempre se basó en criterios analíticos, no en umbrales automáticos de
+correlación.
+6. El profiling justificó mejor la selección de variables.El panel de profiling del
+dashboard permitió identificar variables con alta proporción de faltantes, distribuciones
+muy asimétricas y variables constantes, lo que informó las decisiones de transformación
+y selección.
+7. Las preguntas individuales enriquecen la interpretación.Un participante puede
+tener gdt_total = 8 por distintas combinaciones de ítems: perder el control del tiempo
+de juego pero sin consecuencias negativas, o a la inversa. Mantener los ítems individuales
+en el vector permite detectar estos matices que el total oculta.
+8. La herramienta permite analizar el comportamiento de jugadores desde
+una perspectiva visual y crítica.El objetivo del dashboard no es reemplazar el
+juicio del analista, sino amplificarlo mediante representaciones visuales interactivas que
+externalicen el procesamiento hacia el sistema visual humano.
+7. Referencias
+[1] Cuadros Valdivia, A. M. (2025).Transformación de datos[Material de clase]. Curso
+de Análisis Visual de Datos.
+[2] Cuadros Valdivia, A. M. (2025).Reducción de Dimensionalidad de Datos[Material de
+clase]. Curso de Análisis Visual de Datos.
+[3] Cuadros Valdivia, A. M. (2025).Visualización y Visual Analytics[Material de clase].
+Curso de Análisis Visual de Datos.
+[4] Huamani Vasquez, J. J. y Zela Flores, G. F. K. (2025).OpenPlay Profiler: herramienta
+interactiva de análisis visual para el dataset OpenPlay[Dashboard desarrollado como
+proyecto de curso]. Dataset: OpenPlay (2,543 participantes calificados, 182 variables).
+[5] van der Maaten, L. y Hinton, G. (2008). Visualizing Data using t-SNE.Journal of
+Machine Learning Research, 9, 2579–2605.
+22
+
+--- PAGE 24 ---
+Evidencia 3: Análisis Visual de Datos OpenPlay
+[6] McInnes, L., Healy, J. y Melville, J. (2018). UMAP: Uniform Manifold Approximation
+and Projection for Dimension Reduction.arXiv preprint arXiv:1802.03426.
+23
