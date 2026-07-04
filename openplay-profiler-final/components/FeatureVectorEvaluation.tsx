@@ -1,7 +1,7 @@
 "use client";
 import { useMemo } from "react";
 import { CheckCircle2, AlertTriangle, BarChart3 } from "lucide-react";
-import { pearsonCorrelationFromRows } from "@/lib/data-utils";
+import { parseNumericValue, pearsonCorrelationFromRows } from "@/lib/data-utils";
 import { useStore } from "@/lib/store";
 
 export default function FeatureVectorEvaluation() {
@@ -33,15 +33,29 @@ export default function FeatureVectorEvaluation() {
       }
     }
 
+    const completeNumericRows = numeric.length
+      ? filteredRows.filter((row) =>
+          numeric.every((col) => {
+            return Number.isFinite(parseNumericValue(row[col]));
+          })
+        ).length
+      : 0;
+    const completeNumericPct = filteredRows.length
+      ? (completeNumericRows / filteredRows.length) * 100
+      : 0;
+
     let score = 0;
-    if (selectedVariables.length >= 6) score += 25;
-    else if (selectedVariables.length >= 3) score += 15;
-    if (numeric.length >= 3) score += 25;
-    else if (numeric.length >= 2) score += 15;
-    if (avgMissing < 15) score += 25;
-    else if (avgMissing < 35) score += 15;
-    if (highCorr.length <= 2) score += 25;
-    else if (highCorr.length <= 5) score += 15;
+    if (selectedVariables.length >= 8) score += 15;
+    else if (selectedVariables.length >= 4) score += 10;
+    if (numeric.length >= 5) score += 25;
+    else if (numeric.length >= 3) score += 18;
+    else if (numeric.length >= 2) score += 10;
+    if (avgMissing < 15) score += 20;
+    else if (avgMissing < 35) score += 12;
+    if (completeNumericPct >= 80) score += 20;
+    else if (completeNumericPct >= 60) score += 12;
+    if (highCorr.length <= 2) score += 20;
+    else if (highCorr.length <= 5) score += 12;
 
     const level =
       score >= 80 ? "Listo para proyeccion y clustering" :
@@ -53,7 +67,18 @@ export default function FeatureVectorEvaluation() {
       score >= 55 ? "text-yellow-700 bg-yellow-50 border-yellow-100" :
       "text-red-700 bg-red-50 border-red-100";
 
-    return { numeric, categorical, avgMissing, highMissing, highCorr, score, level, tone };
+    return {
+      numeric,
+      categorical,
+      avgMissing,
+      highMissing,
+      highCorr,
+      completeNumericRows,
+      completeNumericPct,
+      score,
+      level,
+      tone,
+    };
   }, [selectedVariables, columnStats, filteredRows]);
 
   if (selectedVariables.length === 0) {
@@ -97,6 +122,12 @@ export default function FeatureVectorEvaluation() {
           <div className="text-gray-500">Faltantes prom.</div>
           <div className="font-semibold text-gray-800">{evaluation.avgMissing.toFixed(1)}%</div>
         </div>
+        <div className="bg-gray-50 rounded p-2 col-span-2 md:col-span-4">
+          <div className="text-gray-500">Casos completos en variables numericas seleccionadas</div>
+          <div className="font-semibold text-gray-800">
+            {evaluation.completeNumericRows.toLocaleString("es")} de {filteredRows.length.toLocaleString("es")} ({evaluation.completeNumericPct.toFixed(1)}%)
+          </div>
+        </div>
       </div>
 
       <div className="space-y-2 text-xs">
@@ -119,6 +150,12 @@ export default function FeatureVectorEvaluation() {
         {evaluation.highCorr.length > 0 && (
           <div className="text-blue-700 bg-blue-50 border border-blue-100 rounded p-2">
             Pares altamente correlacionados: {evaluation.highCorr.slice(0, 3).map((p) => `${p.a} ~ ${p.b} (r=${p.r.toFixed(2)})`).join("; ")}.
+          </div>
+        )}
+
+        {evaluation.categorical.length > 0 && (
+          <div className="text-gray-600 bg-gray-50 border border-gray-100 rounded p-2">
+            Nota metodologica: PCA, UMAP, t-SNE y clustering usan solo variables numericas. Las categoricas seleccionadas sirven para filtrar, comparar e interpretar, pero no entran directamente al vector proyectado.
           </div>
         )}
       </div>

@@ -66,7 +66,8 @@ function num(v: string | undefined): number | null {
     "always": 4,
   };
   if (normalized in ordinalMap) return ordinalMap[normalized];
-  const n = parseFloat(v); return isNaN(n) ? null : n;
+  const n = Number(v.trim());
+  return Number.isFinite(n) ? n : null;
 }
 
 function avg(vals: number[]): number | null {
@@ -425,10 +426,7 @@ async function main() {
     const xboxSessions = Number(p["xbox_total_sessions"] ?? 0) || 0;
     const steamRecords = Number(p["steam_total_records"] ?? 0) || 0;
     p["telem_total_sessions"] = androidDays + iosDays + nintendoSessions + xboxSessions + steamRecords;
-
-    if (p["steam_playtime_2weeks_max"] !== null && p["steam_playtime_2weeks_max"] !== undefined) {
-      p["steam_playtime_2weeks_min"] = p["steam_playtime_2weeks_max"];
-    }
+    p["telem_activity_count"] = p["telem_total_sessions"];
   }
 
   // Step 13: Write CSV
@@ -445,7 +443,7 @@ async function main() {
     "intake_life_sat","intake_affective_valence",
     "intake_wemwbs_1","intake_wemwbs_2","intake_wemwbs_3","intake_wemwbs_4","intake_wemwbs_5","intake_wemwbs_6","intake_wemwbs_7",
     "gdt_total","promis_total","wemwbs_total","bangs_total",
-    "telem_nocturnal_sessions","telem_total_sessions","steam_playtime_2weeks_min",
+    "telem_nocturnal_sessions","telem_activity_count","telem_total_sessions","steam_playtime_2weeks_min",
     "bw_gdt_1","bw_gdt_2","bw_gdt_3","bw_gdt_4",
     "bw_promis_1","bw_promis_2","bw_promis_3","bw_promis_4","bw_promis_5","bw_promis_6","bw_promis_7","bw_promis_8",
     "bw_wemwbs_1","bw_wemwbs_2","bw_wemwbs_3","bw_wemwbs_4","bw_wemwbs_5","bw_wemwbs_6","bw_wemwbs_7",
@@ -506,7 +504,7 @@ async function main() {
       telemetry_ios: "Sum/mean of daily gaming minutes",
       telemetry_nintendo: "Session count, total duration, mean/max session, unique games, nocturnal sessions",
       telemetry_xbox: "Session count, total duration, mean/max session, unique games, nocturnal sessions",
-      telemetry_steam: "Max playtime (2w and forever), unique game count",
+      telemetry_steam: "Min/max recent playtime, max historical playtime, unique game count",
       telemetry_steam_owned: "Owned games count, total playtime forever",
       cognitive_tasks: "Mean RT, mean accuracy, task count",
       timeuse: "Entry count, day count, gaming entries"

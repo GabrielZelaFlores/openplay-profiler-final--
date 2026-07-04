@@ -52,7 +52,7 @@ def process_xbox(zf):
 
 def process_steam(zf):
     print("Processing Steam raw telemetry...", flush=True)
-    pid_data = defaultdict(lambda: {"maxPt2w": 0, "maxPtF": 0, "games": set(), "count": 0})
+    pid_data = defaultdict(lambda: {"minPt2w": None, "maxPt2w": None, "maxPtF": None, "games": set(), "count": 0})
     with zf.open("OpenPlay/telemetry_steam_raw.csv.gz") as raw:
         with gzip.open(raw, "rt", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -61,17 +61,23 @@ def process_steam(zf):
                 if not pid: continue
                 acc = pid_data[pid]
                 acc["count"] += 1
-                try: pt2w = float(row["playtime_2weeks"]); acc["maxPt2w"] = max(acc["maxPt2w"], pt2w)
+                try:
+                    pt2w = float(row["playtime_2weeks"])
+                    acc["minPt2w"] = pt2w if acc["minPt2w"] is None else min(acc["minPt2w"], pt2w)
+                    acc["maxPt2w"] = pt2w if acc["maxPt2w"] is None else max(acc["maxPt2w"], pt2w)
                 except: pass
-                try: ptF = float(row["playtime_forever"]); acc["maxPtF"] = max(acc["maxPtF"], ptF)
+                try:
+                    ptF = float(row["playtime_forever"])
+                    acc["maxPtF"] = ptF if acc["maxPtF"] is None else max(acc["maxPtF"], ptF)
                 except: pass
                 acc["games"].add(row.get("title_id", ""))
     result = {}
     for pid, acc in pid_data.items():
         result[pid] = {
             "steam_total_records": acc["count"],
-            "steam_playtime_2weeks_max": round(acc["maxPt2w"], 3),
-            "steam_playtime_forever_max": round(acc["maxPtF"], 3),
+            "steam_playtime_2weeks_min": round(acc["minPt2w"], 3) if acc["minPt2w"] is not None else None,
+            "steam_playtime_2weeks_max": round(acc["maxPt2w"], 3) if acc["maxPt2w"] is not None else None,
+            "steam_playtime_forever_max": round(acc["maxPtF"], 3) if acc["maxPtF"] is not None else None,
             "steam_unique_games": len(acc["games"]),
         }
     print(f"  Steam: {len(result)} participants")

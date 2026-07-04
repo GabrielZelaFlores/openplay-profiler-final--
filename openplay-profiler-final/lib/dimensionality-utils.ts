@@ -1,4 +1,21 @@
 import type { DataRow, DataValue } from "./store";
+import { parseNumericValue } from "./data-utils";
+
+function createSeededRandom(seed = 42) {
+  let state = seed >>> 0;
+  return () => {
+    state = (1664525 * state + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+function orientVector(vec: number[]): number[] {
+  let strongest = 0;
+  for (let i = 1; i < vec.length; i++) {
+    if (Math.abs(vec[i]) > Math.abs(vec[strongest])) strongest = i;
+  }
+  return vec[strongest] < 0 ? vec.map((value) => -value) : vec;
+}
 
 // ─── Construcción de matriz numérica ────────────────────────────────────────
 export function buildMatrix(
@@ -10,10 +27,7 @@ export function buildMatrix(
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const vec = variables.map((col) => {
-      const v = row[col];
-      if (v === null || v === undefined || v === "") return NaN;
-      const n = parseFloat(String(v));
-      return isFinite(n) ? n : NaN;
+      return parseNumericValue(row[col]);
     });
     matrix.push(vec);
     rowIndices.push(i);
@@ -92,9 +106,11 @@ export function runPCA(
   }
 
   // Iteración de potencia para PC1 y PC2
-  function powerIter(deflate?: number[]): { vec: number[]; val: number } {
-    const rng = () => Math.random() - 0.5;
-    let v = Array.from({ length: p }, rng);
+  function powerIter(componentIndex: number, deflate?: number[]): { vec: number[]; val: number } {
+    let v = Array.from({ length: p }, (_, i) => {
+      const angle = (i + 1) * (componentIndex + 1) * 1.61803398875;
+      return Math.sin(angle) + 0.5 * Math.cos(angle * 0.5);
+    });
     const norm = (a: number[]) => Math.sqrt(a.reduce((s, x) => s + x * x, 0));
 
     if (deflate) {
@@ -115,11 +131,11 @@ export function runPCA(
     }
     const Mv = cov.map((row) => row.reduce((s, x, j) => s + x * vn[j], 0));
     const val = vn.reduce((s, x, i) => s + x * Mv[i], 0);
-    return { vec: vn, val };
+    return { vec: orientVector(vn), val };
   }
 
-  const pc1 = powerIter();
-  const pc2 = p > 1 ? powerIter(pc1.vec) : { vec: new Array(p).fill(0), val: 0 };
+  const pc1 = powerIter(0);
+  const pc2 = p > 1 ? powerIter(1, pc1.vec) : { vec: new Array(p).fill(0), val: 0 };
   const totalVar = cov.reduce((s, _, i) => s + cov[i][i], 0) || 1;
 
   const coords = std.map((row) => ({
@@ -215,9 +231,8 @@ export async function runTSNE(
     for (let it = 0; it < 50; it++) {
       const Pi = D[i].map((d, j) => (j === i ? 0 : Math.exp(-d * beta)));
       const sumPi = Pi.reduce((a, b) => a + b, 0) || 1e-10;
-      const H =
-        Math.log(sumPi) +
-        (beta * D[i].reduce((a, d, j) => a + (Pi[j] / sumPi) * d, 0)) / sumPi;
+      const expectedDistance = D[i].reduce((a, d, j) => a + (Pi[j] / sumPi) * d, 0);
+      const H = Math.log(sumPi) + beta * expectedDistance;
       const Hdiff = H - Math.log(perplexity);
       if (Math.abs(Hdiff) < 1e-5) break;
       if (Hdiff > 0) { betaMin = beta; beta = betaMax === Infinity ? beta * 2 : (beta + betaMax) / 2; }
@@ -228,10 +243,17 @@ export async function runTSNE(
     P[i] = Pi.map((p) => p / sumPi);
   }
   // Simetrizar y normalizar
-  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) P[i][j] = (P[i][j] + P[j][i]) / (2 * n);
+  const symP: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      symP[i][j] = (P[i][j] + P[j][i]) / (2 * n);
+    }
+  }
 
   // Inicializar embedding
-  let Y = Array.from({ length: n }, () => [(Math.random() - 0.5) * 1e-4, (Math.random() - 0.5) * 1e-4]);
+  const random = createSeededRandom(2026);
+  const P2 = symP;
+  const Y = Array.from({ length: n }, () => [(random() - 0.5) * 1e-4, (random() - 0.5) * 1e-4]);
   let dY = Array.from({ length: n }, () => [0, 0]);
   let gains = Array.from({ length: n }, () => [1.0, 1.0]);
 
@@ -259,7 +281,7 @@ export async function runTSNE(
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
         if (i === j) continue;
-        const f = (ex * P[i][j] - num[i][j] / sumQ) * num[i][j];
+        const f = (ex * P2[i][j] - num[i][j] / sumQ) * num[i][j];
         newdY[i][0] += 4 * f * (Y[i][0] - Y[j][0]);
         newdY[i][1] += 4 * f * (Y[i][1] - Y[j][1]);
       }
@@ -276,6 +298,13 @@ export async function runTSNE(
         dY[i][d] = 0.9 * dY[i][d] - eta * gains[i][d] * newdY[i][d];
         Y[i][d] += dY[i][d];
       }
+    }
+
+    const meanX = Y.reduce((sum, point) => sum + point[0], 0) / n;
+    const meanY = Y.reduce((sum, point) => sum + point[1], 0) / n;
+    for (let i = 0; i < n; i++) {
+      Y[i][0] -= meanX;
+      Y[i][1] -= meanY;
     }
   }
 

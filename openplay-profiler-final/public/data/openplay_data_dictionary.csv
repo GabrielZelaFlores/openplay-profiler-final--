@@ -24,7 +24,7 @@ neuro_diagnosed,survey_intake_raw.csv.gz,neuro_diagnosed,neuro_diagnosed,direct,
 neuro_diag_asd,survey_intake_raw.csv.gz,neuro_diag_asd,neuro_diag_asd,direct,Variable: neuro_diag_asd,mixed,2544
 neuro_diag_adhd,survey_intake_raw.csv.gz,neuro_diag_adhd,neuro_diag_adhd,direct,Variable: neuro_diag_adhd,mixed,2544
 neuro_diag_dyslexia,survey_intake_raw.csv.gz,neuro_diag_dyslexia,neuro_diag_dyslexia,direct,Variable: neuro_diag_dyslexia,mixed,2544
-dependents,survey_intake_raw.csv.gz,dependents,dependents,direct,Variable: dependents,mixed,2113
+dependents,survey_intake_raw.csv.gz,dependents,dependents,direct,Variable: dependents,mixed,2130
 intake_life_sat,survey_intake_raw.csv.gz,intake_life_sat,intake_life_sat,direct,Variable: intake_life_sat,mixed,2544
 intake_affective_valence,survey_intake_raw.csv.gz,intake_affective_valence,intake_affective_valence,direct,Variable: intake_affective_valence,mixed,2544
 intake_wemwbs_1,survey_intake_raw.csv.gz,intake_wemwbs_1,intake_wemwbs_1,direct,Variable: intake_wemwbs_1,mixed,2544
@@ -39,8 +39,8 @@ promis_total,survey_biweekly_raw.csv.gz,promis_total,promis_total,sum,Variable: 
 wemwbs_total,survey_biweekly_raw.csv.gz,wemwbs_total,wemwbs_total,sum,Variable: wemwbs_total,mixed,872
 bangs_total,survey_biweekly_raw.csv.gz,bangs_total,bangs_total,sum,Variable: bangs_total,mixed,835
 telem_nocturnal_sessions,derived_telemetry,telem_nocturnal_sessions,telem_nocturnal_sessions,aggregated,Variable: telem_nocturnal_sessions,mixed,0
+telem_activity_count,derived_telemetry,telem_activity_count,telem_activity_count,aggregated,Variable: telem_activity_count,mixed,0
 telem_total_sessions,derived_telemetry,telem_total_sessions,telem_total_sessions,aggregated,Variable: telem_total_sessions,mixed,0
-steam_playtime_2weeks_min,telemetry_steam_raw.csv.gz,steam_playtime_2weeks_min,steam_playtime_2weeks_min,aggregated,Variable: steam_playtime_2weeks_min,mixed,505
 bw_gdt_1,survey_biweekly_raw.csv.gz,gdt_1,bw_gdt_1,first_wave,Variable: bw_gdt_1,mixed,948
 bw_gdt_2,survey_biweekly_raw.csv.gz,gdt_2,bw_gdt_2,first_wave,Variable: bw_gdt_2,mixed,948
 bw_gdt_3,survey_biweekly_raw.csv.gz,gdt_3,bw_gdt_3,first_wave,Variable: bw_gdt_3,mixed,948
@@ -111,12 +111,12 @@ bw_gaming_value_routines,survey_biweekly_raw.csv.gz,gaming_value_routines,bw_gam
 bw_gaming_value_social,survey_biweekly_raw.csv.gz,gaming_value_social,bw_gaming_value_social,first_wave,Variable: bw_gaming_value_social,mixed,788
 bw_gaming_value_work,survey_biweekly_raw.csv.gz,gaming_value_work,bw_gaming_value_work,first_wave,Variable: bw_gaming_value_work,mixed,788
 bw_life_sat,survey_biweekly_raw.csv.gz,life_sat,bw_life_sat,first_wave,Variable: bw_life_sat,mixed,796
-bw_mctq_fd_sleep_latency_minutes,survey_biweekly_raw.csv.gz,mctq_fd_sleep_latency_minutes,bw_mctq_fd_sleep_latency_minutes,first_wave,Variable: bw_mctq_fd_sleep_latency_minutes,mixed,1193
-bw_mctq_wd_sleep_latency_minutes,survey_biweekly_raw.csv.gz,mctq_wd_sleep_latency_minutes,bw_mctq_wd_sleep_latency_minutes,first_wave,Variable: bw_mctq_wd_sleep_latency_minutes,mixed,1187
+bw_mctq_fd_sleep_latency_minutes,survey_biweekly_raw.csv.gz,mctq_fd_sleep_latency_minutes,bw_mctq_fd_sleep_latency_minutes,first_wave,Variable: bw_mctq_fd_sleep_latency_minutes,mixed,1201
+bw_mctq_wd_sleep_latency_minutes,survey_biweekly_raw.csv.gz,mctq_wd_sleep_latency_minutes,bw_mctq_wd_sleep_latency_minutes,first_wave,Variable: bw_mctq_wd_sleep_latency_minutes,mixed,1198
 bw_mctq_workdays_per_week,survey_biweekly_raw.csv.gz,mctq_workdays_per_week,bw_mctq_workdays_per_week,first_wave,Variable: bw_mctq_workdays_per_week,mixed,1569
 bw_num_waves,survey_biweekly_raw.csv.gz,num_waves,bw_num_waves,first_wave,Variable: bw_num_waves,mixed,682
 bw_played_any_games,survey_biweekly_raw.csv.gz,played_any_games,bw_played_any_games,first_wave,Variable: bw_played_any_games,mixed,2544
-bw_positives,survey_biweekly_raw.csv.gz,positives,bw_positives,first_wave,Variable: bw_positives,mixed,2542
+bw_positives,survey_biweekly_raw.csv.gz,positives,bw_positives,first_wave,Variable: bw_positives,mixed,2543
 bw_problematic_play,survey_biweekly_raw.csv.gz,problematic_play,bw_problematic_play,first_wave,Variable: bw_problematic_play,mixed,2543
 bw_psqi_overall_quality,survey_biweekly_raw.csv.gz,psqi_overall_quality,bw_psqi_overall_quality,first_wave,Variable: bw_psqi_overall_quality,mixed,2544
 bw_psqi_sleep_latency_min,survey_biweekly_raw.csv.gz,psqi_sleep_latency_min,bw_psqi_sleep_latency_min,first_wave,Variable: bw_psqi_sleep_latency_min,mixed,2483

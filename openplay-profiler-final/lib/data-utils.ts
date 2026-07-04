@@ -1,12 +1,19 @@
 import type { DataRow, ColumnStats, IndexGroup, DataValue } from "./store";
 
+export function parseNumericValue(value: DataValue): number {
+  if (value === null || value === undefined || value === "") return NaN;
+  if (typeof value === "number") return Number.isFinite(value) ? value : NaN;
+  const trimmed = String(value).trim();
+  if (!trimmed) return NaN;
+  const numeric = Number(trimmed);
+  return Number.isFinite(numeric) ? numeric : NaN;
+}
+
 // ─── Tipo de columna ────────────────────────────────────────────────────────
 export function detectType(values: DataValue[]): "numeric" | "categorical" {
   const nonNull = values.filter((v) => v !== null && v !== "" && v !== undefined);
   if (nonNull.length === 0) return "categorical";
-  const numCount = nonNull.filter(
-    (v) => !isNaN(parseFloat(String(v))) && isFinite(Number(v))
-  ).length;
+  const numCount = nonNull.filter((v) => Number.isFinite(parseNumericValue(v))).length;
   return numCount / nonNull.length > 0.75 ? "numeric" : "categorical";
 }
 
@@ -51,8 +58,8 @@ export function computeStats(col: string, rows: DataRow[]): ColumnStats {
 
   if (type === "numeric") {
     const nums = nonNull
-      .map((v) => parseFloat(String(v)))
-      .filter((n) => !isNaN(n) && isFinite(n))
+      .map(parseNumericValue)
+      .filter(Number.isFinite)
       .sort((a, b) => a - b);
 
     if (nums.length === 0) return base;
@@ -121,7 +128,7 @@ export function detectIndexGroups(columns: string[]): IndexGroup[] {
 export function pearsonCorrelation(x: number[], y: number[]): number {
   const pairs: [number, number][] = [];
   for (let i = 0; i < Math.min(x.length, y.length); i++) {
-    if (isFinite(x[i]) && isFinite(y[i])) pairs.push([x[i], y[i]]);
+    if (Number.isFinite(x[i]) && Number.isFinite(y[i])) pairs.push([x[i], y[i]]);
   }
   const n = pairs.length;
   if (n < 2) return NaN;
@@ -144,9 +151,9 @@ export function getNumericPairs(
 ): [number, number][] {
   const pairs: [number, number][] = [];
   for (const row of rows) {
-    const x = parseFloat(String(row[xCol] ?? ""));
-    const y = parseFloat(String(row[yCol] ?? ""));
-    if (isFinite(x) && isFinite(y)) pairs.push([x, y]);
+    const x = parseNumericValue(row[xCol]);
+    const y = parseNumericValue(row[yCol]);
+    if (Number.isFinite(x) && Number.isFinite(y)) pairs.push([x, y]);
   }
   return pairs;
 }
@@ -166,8 +173,8 @@ export function pearsonCorrelationFromRows(
 // ─── Valores numéricos de una columna ───────────────────────────────────────
 export function getNumericValues(rows: DataRow[], col: string): number[] {
   return rows
-    .map((r) => parseFloat(String(r[col] ?? "")))
-    .filter((n) => !isNaN(n) && isFinite(n));
+    .map((r) => parseNumericValue(r[col]))
+    .filter(Number.isFinite);
 }
 
 // ─── Exportar CSV ───────────────────────────────────────────────────────────

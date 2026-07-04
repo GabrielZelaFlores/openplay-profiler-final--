@@ -8,14 +8,17 @@
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{tabularx}
-\usepackage{cite}
+\usepackage{longtable}
 \usepackage{geometry}
 \usepackage{hyperref}
 
 \geometry{margin=2.5cm}
 \hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+\addto\captionsspanish{\renewcommand{\tablename}{Tabla}}
 
-\title{\textbf{OpenPlay Profiler: an\'alisis visual, vector de caracter\'isticas y clustering}}
+\title{\textbf{OpenPlay Profiler: propuesta de visualizaci\'on anal\'itica para identificar perfiles exploratorios de jugadores}}
 \author{
 Juan Jos\'e Huaman\'i V\'asquez\\
 Zela Flores Gabriel Frank
@@ -24,13 +27,40 @@ Zela Flores Gabriel Frank
 
 \begin{document}
 
-\maketitle
+\begin{titlepage}
+    \centering
+    \vspace*{1.5cm}
+
+    {\Large \textbf{OpenPlay Profiler}\par}
+    \vspace{0.5cm}
+    {\large Propuesta de visualizaci\'on anal\'itica para identificar perfiles exploratorios de jugadores\par}
+
+    \vspace{2cm}
+
+    {\large \textbf{Informe del proyecto}\par}
+
+    \vspace{2.5cm}
+
+    \begin{tabular}{rl}
+        \textbf{Autores:} & Juan Jos\'e Huaman\'i V\'asquez \\
+                          & Zela Flores Gabriel Frank \\
+        \textbf{Tema:} & Visualizaci\'on anal\'itica y ciencia de datos \\
+        \textbf{Dataset:} & OpenPlay \\
+    \end{tabular}
+
+    \vfill
+
+    {\large \today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
 
 \begin{abstract}
-Este informe presenta un an\'alisis exploratorio del dataset OpenPlay orientado a identificar perfiles de jugadores a partir de variables de comportamiento de juego, bienestar, telemetr\'ia, cognici\'on y uso del tiempo. El flujo propuesto utiliza un vector de caracter\'isticas, reducci\'on dimensional mediante UMAP y clustering con K-means. Los grupos obtenidos se interpretan mediante las variables originales que m\'as los diferencian del promedio general.
+Este informe presenta \textit{OpenPlay Profiler}, una herramienta de ciencia de datos y visualizaci\'on anal\'itica orientada a explorar el dataset OpenPlay. La propuesta integra variables demogr\'aficas, bienestar, riesgo de juego problem\'atico, telemetr\'ia, cognici\'on y uso del tiempo para construir un vector de caracter\'isticas por participante. A partir de ese vector se aplican t\'ecnicas de reducci\'on dimensional, clustering y vistas coordinadas que permiten identificar similitudes, diferencias, anomal\'ias y perfiles exploratorios. El aporte central del trabajo no es solo generar gr\'aficos, sino validar que la herramienta permite extraer conocimiento mediante estudios de caso sustentados en m\'as de una vista visual.
 \end{abstract}
 
-\noindent\textbf{Palabras clave:} OpenPlay, videojuegos, bienestar digital, UMAP, K-means, clustering, visualizaci\'on anal\'itica.
+\noindent\textbf{Palabras clave:} OpenPlay, videojuegos, bienestar digital, visualizaci\'on anal\'itica, PCA, UMAP, t-SNE, clustering, perfiles exploratorios.
 
 \section{Introducci\'on}
 
@@ -44,200 +74,596 @@ El objetivo del proyecto es identificar y caracterizar perfiles exploratorios de
 
 \section{Trabajos relacionados}
 
-El proyecto se apoya en trabajos previos relacionados con videojuegos, bienestar digital, detecci\'on de riesgo y construcci\'on de perfiles de usuarios. Estos estudios muestran que el comportamiento de juego puede analizarse desde distintas fuentes de datos, como encuestas, registros de uso, indicadores psicol\'ogicos y telemetr\'ia.
+Los trabajos relacionados se agrupan en dos l\'ineas: estudios sobre datos de videojuegos y bienestar, y propuestas de visualizaci\'on anal\'itica para datos multivariados. Esta revisi\'on no busca cubrir toda la literatura, sino ubicar el proyecto dentro de enfoques cercanos y justificar por qu\'e una herramienta visual interactiva es pertinente para el problema.
 
-\subsection{Trabajos relacionados con modelos}
+\subsection{Trabajos relacionados con modelos y m\'etodos}
 
-Hossain et al. proponen un dataset multidimensional sobre comportamiento de juego en estudiantes, con el objetivo de relacionar h\'abitos de juego con bienestar y rendimiento acad\'emico \cite{hossain}. Este enfoque es relevante porque muestra la importancia de integrar variables de distintas dimensiones para analizar el impacto del juego.
+El estudio OpenPlay plantea una base de datos longitudinal que combina trazas digitales de juego con medidas psicol\'ogicas y cognitivas \cite{openplay}. Su importancia para este proyecto est\'a en que no limita el an\'alisis a una sola fuente: incluye plataformas, encuestas, tareas cognitivas y uso del tiempo. Esa estructura exige t\'ecnicas capaces de integrar variables heterog\'eneas y revisar la cobertura de cada fuente antes de interpretar resultados.
 
-Ozyirmidokuz et al. plantean un marco de aprendizaje autom\'atico para la detecci\'on temprana de adicci\'on a videojuegos digitales \cite{gameaddicted}. Su trabajo se relaciona con este proyecto porque utiliza variables de comportamiento para identificar posibles se\~nales de riesgo.
+La Organizaci\'on Mundial de la Salud define el trastorno por videojuegos en la CIE-11 como un patr\'on persistente de comportamiento de juego con deterioro del control, prioridad creciente y continuidad pese a consecuencias negativas \cite{who}. Esta referencia no se usa para diagnosticar participantes, sino para justificar que el an\'alisis de patrones de juego y bienestar tiene relevancia social y debe tratarse con cuidado metodol\'ogico.
 
-Skalka et al. proponen la construcci\'on de personas de usuario a partir de logs de juego, utilizando extracci\'on de caracter\'isticas, reducci\'on dimensional y clustering \cite{skalka}. Este trabajo es especialmente cercano a la propuesta, porque busca obtener perfiles interpretables a partir de comportamiento registrado.
+En cuanto a m\'etodos, PCA, UMAP y t-SNE son t\'ecnicas utilizadas para representar datos de muchas dimensiones en espacios de menor dimensi\'on \cite{jolliffe,umap,tsne}. Su funci\'on en este proyecto es permitir una lectura visual de similitudes entre participantes. El clustering, especialmente K-means, complementa esa proyecci\'on al separar grupos preliminares que luego deben interpretarse con variables originales \cite{kmeans}.
 
 \subsection{Trabajos relacionados con visualizaci\'on anal\'itica}
 
-En visualizaci\'on anal\'itica, los sistemas interactivos permiten explorar datos multivariados, comparar grupos y detectar patrones que no son evidentes en tablas. Para este proyecto, la visualizaci\'on es importante porque ayuda a observar similitudes entre participantes, separar grupos y relacionar los clusters con variables originales.
+La visualizaci\'on anal\'itica combina representaciones visuales, interacci\'on humana y m\'etodos computacionales para apoyar el razonamiento sobre datos complejos \cite{keim}. Heer y Shneiderman destacan que la interacci\'on es esencial para explorar, filtrar, seleccionar y conectar vistas durante el proceso de an\'alisis \cite{heer}. Este enfoque se relaciona directamente con OpenPlay Profiler, porque el usuario no solo observa una proyecci\'on 2D: tambi\'en selecciona participantes, revisa variables originales, aplica filtros, compara grupos y valida si un patr\'on aparece en varias vistas.
 
 \begin{table}[H]
 \centering
-\caption{Resumen de trabajos relacionados}
-\begin{tabularx}{\textwidth}{p{3cm} p{3.5cm} p{4cm} X}
+\caption{Tabla comparativa de trabajos relacionados}
+\begin{tabularx}{\textwidth}{p{3.1cm} p{3.5cm} p{4cm} X}
 \toprule
-\textbf{Trabajo} & \textbf{Problema} & \textbf{M\'etodo} & \textbf{Relaci\'on con el proyecto} \\
+\textbf{Referencia} & \textbf{Problema} & \textbf{M\'etodo o enfoque} & \textbf{Relaci\'on con el proyecto} \\
 \midrule
-Hossain et al. & Relaci\'on entre juego, bienestar y rendimiento & Dataset multidimensional y an\'alisis de correlaciones & Justifica integrar variables de comportamiento y bienestar. \\
-Ozyirmidokuz et al. & Detecci\'on de riesgo de adicci\'on digital & Machine learning supervisado & Aporta el enfoque de usar datos de comportamiento para detectar riesgo. \\
-Skalka et al. & Construcci\'on de perfiles de jugadores con logs & Extracci\'on de caracter\'isticas, PCA y K-means & Se relaciona directamente con el uso de vector de caracter\'isticas y clustering. \\
+Ballou et al. / OpenPlay & Relaci\'on entre juego, bienestar, motivaci\'on y cognici\'on & Dataset longitudinal con telemetr\'ia multiplataforma y encuestas & Proporciona la fuente de datos y justifica integrar varias dimensiones del jugador. \\
+OMS / CIE-11 & Definici\'on de trastorno por videojuegos & Marco cl\'inico y social sobre conducta de juego problem\'atica & Motiva el an\'alisis responsable sin convertir clusters en diagn\'osticos. \\
+Jolliffe; McInnes et al.; van der Maaten y Hinton & Representaci\'on de datos multivariados & PCA, UMAP y t-SNE para reducci\'on dimensional & Sustentan la proyecci\'on 2D usada para explorar similitud entre participantes. \\
+MacQueen & Agrupamiento de observaciones & K-means para clustering & Permite formar perfiles exploratorios que luego se interpretan con variables originales. \\
+Keim et al.; Heer y Shneiderman & An\'alisis visual interactivo & Visual analytics e interacciones coordinadas & Sustentan el dise\~no de vistas conectadas para validar patrones. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \section{Modelos}
 
-El modelo propuesto no busca predecir una etiqueta cl\'inica, sino descubrir patrones y perfiles exploratorios en los datos. Para ello se utilizan tres componentes principales: vector de caracter\'isticas, reducci\'on dimensional y clustering.
+El proyecto no utiliza modelos predictivos ni clasificadores supervisados, porque no existe una etiqueta cl\'inica que se busque predecir. El objetivo es exploratorio: construir una representaci\'on com\'un de cada participante, proyectarla visualmente, detectar perfiles y explicar esos perfiles con variables originales. Por esa raz\'on, los modelos se usan como apoyo para la visualizaci\'on anal\'itica y no como mecanismos autom\'aticos de diagn\'ostico.
 
-\subsection{Vector de caracter\'isticas}
-
-El vector de caracter\'isticas representa a cada participante mediante variables seleccionadas del dataset. Su funci\'on es convertir informaci\'on heterog\'enea en una representaci\'on comparable. En este proyecto se integran variables de demograf\'ia, bienestar, riesgo de juego problem\'atico, telemetr\'ia, actividad diaria, cognici\'on y uso del tiempo.
-
-\subsection{Reducci\'on dimensional con UMAP}
-
-UMAP se utiliza para proyectar el vector de caracter\'isticas en dos dimensiones \cite{umap}. Esta proyecci\'on permite visualizar participantes similares como puntos cercanos y participantes diferentes como puntos alejados. Los ejes UMAP 1 y UMAP 2 no representan variables originales, sino una s\'intesis de similitud calculada a partir del conjunto de caracter\'isticas.
-
-\subsection{Clustering con K-means}
-
-K-means agrupa los puntos de la proyecci\'on bidimensional en cuatro clusters \cite{kmeans}. Cada cluster contiene participantes con posiciones cercanas en el espacio UMAP. Los colores del gr\'afico representan los grupos detectados por el algoritmo; no indican categor\'ias predefinidas, sino perfiles encontrados a partir de los datos.
-
-\section{Descripci\'on general del sistema}
-
-\subsection{Descripci\'on de los datos}
-
-El dataset utilizado es \texttt{openplay\_consolidated.csv}, que contiene variables asociadas a participantes del estudio OpenPlay. Incluye datos demogr\'aficos, escalas de bienestar, riesgo de juego problem\'atico, telemetr\'ia de plataformas, registros de actividad diaria, tareas cognitivas y uso del tiempo.
-
-\subsection{Preprocesamiento}
-
-Antes del an\'alisis se revisan los tipos de datos, valores faltantes, variables disponibles y estad\'isticas descriptivas. Las variables num\'ericas se estandarizan para evitar que aquellas con escalas mayores dominen el c\'alculo de similitud. Adem\'as, se eval\'ua el vector seleccionado considerando cantidad de variables, cobertura, faltantes y correlaciones altas.
-
-\subsection{Tareas de an\'alisis}
-
-\begin{itemize}
-    \item \textbf{T1:} Explorar la estructura general del dataset para conocer variables, dimensiones y calidad de datos.
-    \item \textbf{T2:} Evaluar un vector de caracter\'isticas que represente adecuadamente a cada participante.
-    \item \textbf{T3:} Proyectar participantes en dos dimensiones para observar similitudes, separaciones y posibles grupos.
-    \item \textbf{T4:} Identificar clusters de jugadores y caracterizarlos mediante variables originales.
-\end{itemize}
-
-\subsection{Pipeline del sistema}
-
-El flujo del sistema sigue cinco pasos: carga del dataset, revisi\'on exploratoria, selecci\'on del vector de caracter\'isticas, proyecci\'on UMAP y clustering con K-means. Finalmente, los grupos se interpretan comparando las variables originales que m\'as se alejan del promedio general.
-
-\section{Dise\~no visual}
-
-El sistema \textit{OpenPlay Profiler} organiza el an\'alisis en vistas interactivas. Cada vista apoya una tarea espec\'ifica del proceso de ciencia de datos y permite pasar desde la revisi\'on del dataset hasta la interpretaci\'on de perfiles.
+En esta secci\'on se describen los modelos como componentes del sistema: qu\'e reciben, qu\'e transforman y qu\'e entregan a las vistas. Las im\'agenes de resultados se reservan para la secci\'on de validaci\'on, donde se muestran como evidencia de los casos de estudio.
 
 \begin{table}[H]
 \centering
-\caption{Relaci\'on entre vistas visuales y tareas anal\'iticas}
-\begin{tabularx}{\textwidth}{p{3.5cm} p{4cm} p{3cm} X}
+\caption{Resumen de modelos y su relaci\'on con la validaci\'on}
+\begin{tabularx}{\textwidth}{p{3cm} p{3.2cm} p{3.4cm} X}
 \toprule
-\textbf{Vista} & \textbf{Qu\'e muestra} & \textbf{Tarea} & \textbf{Interacci\'on} \\
+\textbf{T\'ecnica} & \textbf{Entrada} & \textbf{Salida} & \textbf{Uso en la herramienta} \\
 \midrule
-Carga y profiling & Dataset, columnas, tipos de datos y faltantes & T1 & Carga de archivo y revisi\'on de resumen. \\
-Vector de caracter\'isticas & Variables seleccionadas y evaluaci\'on del vector & T2 & Selecci\'on de variables y vector recomendado. \\
-Proyecci\'on 2D & Participantes representados en UMAP & T3 & Exploraci\'on visual, zoom y selecci\'on. \\
-Clustering & Grupos coloreados y tabla de clusters & T4 & Cambio de algoritmo, selecci\'on de puntos e interpretaci\'on. \\
+Vector de caracter\'isticas & Variables num\'ericas seleccionadas & Representaci\'on por participante & Define qu\'e atributos participan en PCA, UMAP, t-SNE y clustering. \\
+Estandarizaci\'on e imputaci\'on & Vector con escalas distintas y faltantes & Matriz num\'erica comparable & Evita que una variable domine por escala y permite trabajar con cobertura parcial. \\
+Correlaci\'on & Pares de variables num\'ericas & Matriz o pares con asociaci\'on alta & Detecta redundancia y ayuda a defender la selecci\'on del vector. \\
+PCA / UMAP / t-SNE & Vector estandarizado & Coordenadas 2D por participante & Genera la proyecci\'on visual donde se localizan perfiles o casos. \\
+Clustering & Coordenadas o vector estandarizado & Etiqueta de grupo por participante & Permite formar perfiles exploratorios que se interpretan con variables originales. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\section{Metodolog\'ia y resultados}
-
-El proceso seguido en la herramienta se organiz\'o en cinco etapas:
-
-\begin{enumerate}
-    \item \textbf{Carga de datos:} se utiliz\'o el archivo consolidado \texttt{openplay\_consolidated.csv}.
-    \item \textbf{Profiling:} se revisaron variables, tipos de datos, valores faltantes y estad\'isticas descriptivas.
-    \item \textbf{Vector de caracter\'isticas:} se seleccion\'o un vector integral recomendado para representar el proyecto.
-    \item \textbf{Reducci\'on dimensional:} se aplic\'o UMAP para obtener una proyecci\'on en dos dimensiones.
-    \item \textbf{Clustering:} se aplic\'o K-means con cuatro grupos sobre la proyecci\'on UMAP.
-\end{enumerate}
+\begin{table}[H]
+\centering
+\caption{Flujo conceptual de los modelos en OpenPlay Profiler}
+\begin{tabularx}{\textwidth}{p{3.2cm} p{4.2cm} X}
+\toprule
+\textbf{Etapa} & \textbf{Operaci\'on} & \textbf{Resultado dentro del sistema} \\
+\midrule
+Dataset consolidado & Carga de \texttt{openplay\_consolidated.csv} y lectura de columnas disponibles & Matriz inicial de participantes, variables y banderas de fuente. \\
+Vector de caracter\'isticas & Selecci\'on del vector recomendado o de un vector definido por el usuario & Submatriz num\'erica que representa a cada participante. \\
+Preprocesamiento & Imputaci\'on de faltantes y estandarizaci\'on de escalas & Matriz comparable para c\'alculo de similitud. \\
+Reducci\'on dimensional & PCA, UMAP o t-SNE sobre el vector preparado & Coordenadas 2D para ubicar participantes en la vista interactiva. \\
+Clustering & K-means, jer\'arquico o DBSCAN seg\'un la configuraci\'on elegida & Etiquetas de perfil exploratorio y m\'etricas descriptivas. \\
+Interpretaci\'on & Comparaci\'on con variables originales y vistas coordinadas & Explicaci\'on de perfiles, anomal\'ias y patrones validados. \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{Vector de caracter\'isticas}
 
-El vector seleccionado integra variables de distintas dimensiones del dataset. Esta selecci\'on permite representar a cada participante desde una perspectiva amplia, evitando que el an\'alisis dependa \'unicamente de variables de salud mental o de telemetr\'ia.
+El vector de caracter\'isticas es la representaci\'on num\'erica de cada participante. En este proyecto integra variables de varias dimensiones: edad y plataformas, escalas de bienestar y riesgo, sesiones de juego, actividad nocturna, juegos \'unicos, registros diarios, medidas cognitivas y uso del tiempo. Su utilidad es convertir datos de origen distinto en una matriz comparable para los modelos.
+
+El vector se conecta con las visualizaciones porque determina la posici\'on de cada participante en PCA, UMAP o t-SNE. Si el vector se modifica, tambi\'en cambia la proyecci\'on y la lectura de clusters. Por esa raz\'on la herramienta incluye una vista de evaluaci\'on del vector, donde se revisa si las variables elegidas son num\'ericas, si tienen cobertura suficiente y si existen correlaciones altas que puedan generar redundancia. En los casos de estudio, el vector permite combinar telemetr\'ia, bienestar y uso del tiempo en una misma lectura visual.
+
+El vector recomendado que aparece en la herramienta se carga desde el propio proyecto y se resume en la Tabla \ref{tab:vector_recomendado}. Este vector funciona como configuraci\'on inicial para la exploraci\'on, aunque la interfaz permite agregar o quitar variables antes de ejecutar reducci\'on dimensional o clustering.
 
 \begin{table}[H]
 \centering
-\caption{Dimensiones consideradas en el vector de caracter\'isticas}
-\begin{tabular}{p{4cm} p{10cm}}
+\caption{Vector de caracter\'isticas recomendado por OpenPlay Profiler}
+\label{tab:vector_recomendado}
+\begin{tabularx}{\textwidth}{p{3.2cm} X}
 \toprule
-\textbf{Dimensi\'on} & \textbf{Variables representativas} \\
+\textbf{Dimensi\'on} & \textbf{Variables incluidas} \\
 \midrule
-Base del participante & Edad, n\'umero de plataformas, n\'umero de plataformas con telemetr\'ia. \\
-Bienestar y salud mental & WEMWBS, PROMIS. \\
-Riesgo de juego problem\'atico & GDT, BANGS. \\
-Telemetr\'ia de juego & Sesiones totales, sesiones nocturnas, tiempo de juego en Steam, juegos \'unicos. \\
-Actividad diaria & D\'ias jugados, d\'ias con estr\'es reportado. \\
-Cognici\'on & Precisi\'on media y tiempo de respuesta medio. \\
-Uso del tiempo & Entradas relacionadas con juego y n\'umero de d\'ias registrados. \\
+Demograf\'ia y plataformas & \texttt{age}, \texttt{num\_platforms}, \texttt{num\_telemetry\_platforms}, \texttt{self\_reported\_weekly\_play}. \\
+Bienestar y riesgo & \texttt{gdt\_total}, \texttt{promis\_total}, \texttt{wemwbs\_total}, \texttt{bangs\_total}. \\
+Telemetr\'ia de juego & \texttt{telem\_nocturnal\_sessions}, \texttt{steam\_playtime\_2weeks\_max}, \texttt{steam\_playtime\_forever\_max}, \texttt{steam\_unique\_games}, \texttt{steam\_owned\_games\_count}. \\
+Actividad diaria & \texttt{daily\_played\_days}, \texttt{daily\_stress\_days}. \\
+Cognici\'on & \texttt{cog\_mean\_accuracy}, \texttt{cog\_mean\_rt}. \\
+Uso del tiempo & \texttt{timeuse\_gaming\_entries}, \texttt{timeuse\_num\_days}. \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
+
+\subsection{Estandarizaci\'on e imputaci\'on}
+
+Antes de aplicar reducci\'on dimensional se estandarizan las variables num\'ericas. Esto evita que variables con escalas grandes, como minutos de juego o tiempos de respuesta, dominen sobre variables con escalas peque\~nas, como puntajes de encuestas. Para los valores faltantes, la herramienta permite imputaci\'on por media, imputaci\'on con cero o eliminaci\'on de casos, de modo que el usuario pueda evaluar c\'omo cambia la proyecci\'on seg\'un el tratamiento elegido.
+
+En la herramienta, la estandarizaci\'on y el tratamiento de valores faltantes se aplican antes de la reducci\'on dimensional y el clustering. Esta decisi\'on permite comparar variables de escalas distintas y evita que las sesiones o minutos de juego oculten las diferencias en escalas como PROMIS, WEMWBS, GDT o BANGS.
+
+\subsection{Correlaci\'on}
+
+La correlaci\'on se usa para revisar relaciones entre variables num\'ericas y detectar redundancia. En la herramienta, la matriz de correlaci\'on no elimina autom\'aticamente variables, pero advierte pares con relaci\'on alta. Esto ayuda a decidir si el vector est\'a demasiado concentrado en una misma familia de medidas o si representa dimensiones distintas del problema.
+
+La correlaci\'on tambi\'en cumple una funci\'on de validaci\'on: cuando una separaci\'on visual se plantea como relaci\'on entre dos variables, la vista bivariada y la matriz de correlaci\'on permiten revisar si esa relaci\'on tiene respaldo en los valores originales. Esto es relevante para el Caso 2, donde las sesiones totales y nocturnas se analizan juntas.
+
+\subsection{PCA}
+
+PCA, o an\'alisis de componentes principales, transforma un conjunto de variables correlacionadas en componentes lineales que concentran la mayor variabilidad posible \cite{jolliffe}. En el sistema se utiliza para proyectar participantes en dos ejes interpretables como componentes principales. El resultado es un mapa donde la cercan\'ia entre puntos indica similitud aproximada seg\'un el vector seleccionado. La herramienta tambi\'en reporta la varianza explicada, lo que permite saber si la vista 2D conserva suficiente informaci\'on para apoyar una lectura exploratoria.
+
+En la validaci\'on del informe, PCA se usa como mapa de referencia para ubicar los perfiles C0, C1, C2 y C3. Sin embargo, la conclusi\'on no depende solo de la ubicaci\'on de los puntos: cada grupo se explica despu\'es mediante medias estandarizadas, cobertura por fuente y relaciones bivariadas.
+
+\subsection{UMAP}
+
+UMAP construye una representaci\'on de baja dimensi\'on conservando relaciones de vecindad entre observaciones \cite{umap}. En este proyecto se usa para observar grupos locales de participantes que tienen combinaciones similares de bienestar, telemetr\'ia, cognici\'on y uso del tiempo. Sus par\'ametros, como n\'umero de vecinos y distancia m\'inima, permiten modificar el nivel de separaci\'on visual. El conocimiento que aporta es la identificaci\'on de zonas de similitud, separaciones entre perfiles y posibles puntos at\'ipicos.
+
+UMAP es \'util durante la exploraci\'on interactiva porque puede separar vecindarios locales que PCA no siempre separa. Aun as\'i, cualquier patr\'on encontrado con UMAP debe confirmarse con variables originales, filtros y vistas bivariadas para evitar interpretar una forma visual como evidencia suficiente.
+
+\subsection{t-SNE}
+
+t-SNE es una t\'ecnica de reducci\'on dimensional que busca preservar vecindades locales en una proyecci\'on de baja dimensi\'on \cite{tsne}. En la herramienta funciona como alternativa a PCA y UMAP. Su valor est\'a en comparar si los grupos locales se mantienen cuando se usa otro m\'etodo de proyecci\'on. Si un patr\'on aparece en una proyecci\'on y tambi\'en se revisa con variables originales o con otra vista, la interpretaci\'on gana solidez.
+
+\subsection{Clustering}
+
+El clustering agrupa participantes seg\'un su similitud. OpenPlay Profiler incluye K-means, clustering jer\'arquico de enlace simple y DBSCAN. K-means asigna cada punto al centroide m\'as cercano y recalcula centros hasta estabilizar los grupos \cite{kmeans}. DBSCAN busca regiones densas y permite separar ruido, mientras que el m\'etodo jer\'arquico permite observar agrupamientos por distancia. El resultado de estos modelos es una etiqueta de grupo para cada participante y un conjunto de m\'etricas descriptivas, como silhouette aproximado, cohesi\'on, separaci\'on y balance de tama\~no. Estas etiquetas se conectan con la vista de proyecci\'on 2D y con la interpretaci\'on por variables originales.
+
+En la validaci\'on se usa clustering para organizar participantes en perfiles exploratorios. El cluster no se interpreta por su color, sino por las variables que lo diferencian: cobertura multiplataforma, intensidad nocturna, bienestar/riesgo y uso registrado. De esta forma, el modelo cumple una funci\'on de descubrimiento visual, mientras que la explicaci\'on se sostiene en las vistas de confirmaci\'on.
+
+\section{Descripci\'on general del sistema / Overview}
+
+OpenPlay Profiler est\'a organizado como una aplicaci\'on web interactiva para convertir datos heterog\'eneos de juego y bienestar en evidencia visual verificable. El usuario carga el dataset consolidado o archivos fuente, revisa la calidad de los datos, selecciona variables, eval\'ua el vector, aplica reducci\'on dimensional, ejecuta clustering y valida patrones mediante vistas conectadas. La propuesta no termina en la generaci\'on de una proyecci\'on 2D: el flujo obliga a revisar cobertura, variables originales y casos de estudio antes de formular conclusiones.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{vector_caracteristicas.png}
-    \caption{Selecci\'on y evaluaci\'on del vector de caracter\'isticas.}
-    \label{fig:vector}
+    \includegraphics[width=0.98\textwidth]{figures/fig00_app_overview.png}
+    \caption{Vista general de OpenPlay Profiler con el dataset consolidado cargado. La pantalla inicial resume participantes, variables, cobertura por fuente y vista previa del dataset.}
+    \label{fig:app_overview}
 \end{figure}
 
-\subsection{Resultados de clustering}
+\subsection{Descripci\'on de los datos}
 
-Para la segmentaci\'on se utiliz\'o K-means sobre la proyecci\'on UMAP. La herramienta detect\'o cuatro grupos con una distribuci\'on razonable de participantes, por lo que pueden analizarse como perfiles exploratorios.
+La fuente principal es el dataset OpenPlay, consolidado en el archivo \texttt{openplay\_consolidated.csv}. En la versi\'on utilizada por la herramienta, el archivo contiene 2544 participantes y 186 variables. De ellas, 132 se tratan como num\'ericas y 54 como categ\'oricas dentro del sistema. El porcentaje promedio de valores faltantes calculado sobre las columnas consolidadas es 52.5\%. Este dato no se interpreta como resultado del comportamiento de los jugadores, sino como una condici\'on de calidad que afecta la lectura visual: antes de explicar perfiles, el usuario debe saber qu\'e fuentes tienen suficiente cobertura.
 
-\begin{table}[H]
-\centering
-\caption{Distribuci\'on de participantes por cluster}
-\begin{tabular}{lc}
-\toprule
-\textbf{Cluster} & \textbf{Participantes} \\
-\midrule
-Cluster 4 & 977 \\
-Cluster 1 & 628 \\
-Cluster 3 & 546 \\
-Cluster 2 & 393 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\textwidth]{umap_clusters.png}
-    \caption{Proyecci\'on UMAP con clustering K-means de cuatro grupos.}
-    \label{fig:umapclusters}
-\end{figure}
-
-\subsection{Interpretaci\'on de los clusters}
-
-Los ejes UMAP 1 y UMAP 2 no representan variables originales, sino una s\'intesis visual de similitud entre participantes. Por ello, los clusters no se explican solo por su ubicaci\'on en el gr\'afico, sino por las variables originales que m\'as los diferencian del promedio general. En la interpretaci\'on, el s\'imbolo $\sigma$ indica desviaciones est\'andar: valores positivos muestran que el grupo est\'a por encima del promedio y valores negativos muestran que est\'a por debajo.
+Las fuentes integradas incluyen encuestas de ingreso, encuestas biweekly, encuestas diarias, telemetr\'ia de Steam, Xbox, Nintendo Switch, Android e iOS, tareas cognitivas y registros de uso del tiempo. Las variables principales se agrupan de la siguiente manera:
 
 \begin{itemize}
-    \item \textbf{Cluster 4: perfil de actividad gaming registrada y concentrada.} Este grupo tiene 977 participantes. Se diferencia por presentar m\'as entradas de uso del tiempo relacionadas con videojuegos (\texttt{timeuse\_gaming\_entries}: $+0.68\sigma$) y m\'as d\'ias registrados (\texttt{timeuse\_num\_days}: $+0.67\sigma$). Tambi\'en muestra mayor tiempo reciente de juego en Steam, aunque utiliza menos plataformas que el promedio. Esto sugiere un perfil con actividad de juego frecuente y bien registrada, pero no necesariamente multiplataforma.
-    
-    \item \textbf{Cluster 1: perfil de baja trazabilidad y mayor malestar reportado.} Este grupo tiene 628 participantes. Se caracteriza por menos d\'ias de uso del tiempo (\texttt{timeuse\_num\_days}: $-0.86\sigma$), menos entradas relacionadas con videojuegos (\texttt{timeuse\_gaming\_entries}: $-0.68\sigma$) y menos plataformas con telemetr\'ia. Adem\'as, presenta valores superiores en \texttt{promis\_total} y mayor tiempo de respuesta cognitivo. Esto indica un perfil con menor cantidad de registros de actividad y posibles se\~nales de mayor malestar.
-    
-    \item \textbf{Cluster 3: perfil multiplataforma con alta cobertura de datos.} Este grupo tiene 546 participantes. Se diferencia principalmente por tener m\'as plataformas con telemetr\'ia (\texttt{num\_telemetry\_platforms}: $+1.28\sigma$) y m\'as plataformas en general (\texttt{num\_platforms}: $+0.76\sigma$). Tambi\'en tiene m\'as d\'ias y entradas de uso del tiempo. Esto sugiere jugadores con mayor presencia en distintas plataformas y mejor cobertura de datos.
-    
-    \item \textbf{Cluster 2: perfil de alta intensidad y juego nocturno.} Este grupo tiene 393 participantes. Se caracteriza por m\'as sesiones nocturnas (\texttt{telem\_nocturnal\_sessions}: $+1.12\sigma$) y m\'as sesiones totales (\texttt{telem\_total\_sessions}: $+1.08\sigma$). Tambi\'en presenta una edad mayor al promedio y m\'as d\'ias registrados. Por ello se interpreta como un perfil de jugadores con mayor intensidad de actividad y presencia de juego nocturno.
+    \item \textbf{Demograf\'ia y base del participante:} edad, g\'enero, pa\'is, educaci\'on, plataformas declaradas y cobertura de telemetr\'ia.
+    \item \textbf{Bienestar y salud mental:} puntajes como WEMWBS y PROMIS.
+    \item \textbf{Riesgo de juego problem\'atico:} GDT y BANGS.
+    \item \textbf{Telemetr\'ia de juego:} sesiones totales, sesiones nocturnas, duraci\'on de sesiones, juegos \'unicos y tiempo de juego en Steam.
+    \item \textbf{Actividad diaria:} d\'ias con registros, d\'ias jugados y reportes asociados a la actividad.
+    \item \textbf{Cognici\'on:} tiempo de respuesta promedio, precisi\'on promedio, n\'umero de tareas y ensayos.
+    \item \textbf{Uso del tiempo:} n\'umero de entradas, d\'ias registrados y entradas relacionadas con videojuegos.
 \end{itemize}
+
+El dataset es multivariado, heterog\'eneo y parcialmente temporal. Contiene variables num\'ericas, categ\'oricas y banderas de disponibilidad. Tambi\'en posee una dimensi\'on temporal indirecta porque varias variables resumen sesiones, d\'ias registrados o actividad durante ventanas de tiempo. En el sistema, las banderas de disponibilidad son importantes porque permiten diferenciar patrones reales de comportamiento frente a patrones producidos por baja observabilidad.
+
+\begin{table}[H]
+\centering
+\caption{Cobertura por fuente en el dataset consolidado}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Fuente o bandera} & \textbf{Participantes con datos} & \textbf{Cobertura} \\
+\midrule
+Biweekly & 1596 & 62.7\% \\
+Daily & 1230 & 48.3\% \\
+Steam & 2039 & 80.1\% \\
+Xbox & 277 & 10.9\% \\
+Nintendo Switch & 726 & 28.5\% \\
+Android & 73 & 2.9\% \\
+iOS & 93 & 3.7\% \\
+Cognici\'on & 1453 & 57.1\% \\
+Uso del tiempo & 1134 & 44.6\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Preprocesamiento}
+
+El preprocesamiento se concentra en preparar datos para an\'alisis visual, no en producir un an\'alisis estad\'istico cerrado. Primero se integran las fuentes por identificador de participante. Luego se generan variables derivadas, como sesiones totales, sesiones nocturnas, juegos \'unicos, minutos de juego, conteos de registros y banderas de disponibilidad. Despu\'es se revisan tipos de datos, valores faltantes, distribuciones y cobertura. Esta etapa responde directamente al Caso 1, porque la cobertura de datos condiciona la fuerza de cualquier interpretaci\'on posterior.
+
+Para la reducci\'on dimensional, solo se usan variables num\'ericas. Las variables categ\'oricas se conservan para filtrar, describir e interpretar participantes, pero no entran directamente al c\'alculo de PCA, UMAP o t-SNE. Las variables seleccionadas se estandarizan y se tratan los valores faltantes seg\'un el m\'etodo elegido. Finalmente, las coordenadas 2D y las etiquetas de clustering se conectan con las vistas de selecci\'on, tablas y perfiles. La interpretaci\'on final no se basa solamente en la posici\'on de los puntos, sino en la combinaci\'on entre proyecci\'on, diferencias estandarizadas, filtros y gr\'aficos de validaci\'on.
+
+\subsection{Tareas de an\'alisis}
+
+\begin{table}[H]
+\centering
+\caption{Tareas de an\'alisis del sistema}
+\begin{tabularx}{\textwidth}{p{1.1cm} X p{3.1cm} p{2.3cm}}
+\toprule
+\textbf{Tarea} & \textbf{Descripci\'on} & \textbf{Variables clave} & \textbf{Casos} \\
+\midrule
+T1 & Evaluar la cobertura y calidad del dataset para decidir qu\'e fuentes pueden sostener una interpretaci\'on visual. & Banderas de fuente, faltantes, tipos de columna. & Caso 1 \\
+T2 & Seleccionar y evaluar un vector de caracter\'isticas que integre dimensiones complementarias del participante. & Bienestar, riesgo, telemetr\'ia, cognici\'on, uso del tiempo. & Casos 2--4 \\
+T3 & Explorar relaciones entre variables para confirmar si una separaci\'on visual tiene respaldo en atributos originales. & Correlaciones, scatter bivariado, variables seleccionadas. & Casos 2 y 3 \\
+T4 & Comparar subgrupos de participantes en la proyecci\'on para explicar qu\'e variables producen separaciones o concentraciones relevantes. & Coordenadas PCA/UMAP/t-SNE, clusters y valores originales. & Casos 2--4 \\
+T5 & Detectar perfiles exploratorios mediante clustering y caracterizarlos con medias estandarizadas de variables originales. & Etiquetas de cluster, medias por grupo, diferencias estandarizadas. & Casos 2--4 \\
+T6 & Reconocer si un perfil se explica por comportamiento de juego, bienestar o disponibilidad desigual de datos. & Sesiones nocturnas, cobertura por fuente, uso del tiempo, escalas. & Casos 1--4 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Pipeline del sistema}
+
+El flujo general del sistema se resume as\'i:
+
+\begin{verbatim}
+Datos OpenPlay
+  -> integracion por participante
+  -> limpieza y variables derivadas
+  -> profiling de columnas y cobertura
+  -> seleccion del vector de caracteristicas
+  -> evaluacion de faltantes y correlaciones
+  -> estandarizacion e imputacion
+  -> PCA / UMAP / t-SNE
+  -> clustering exploratorio
+  -> vistas interactivas y filtros
+  -> estudios de caso
+  -> validacion de patrones con variables originales
+\end{verbatim}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{interpretacion_clusters.png}
-    \caption{Interpretaci\'on de clusters mediante variables originales del vector.}
-    \label{fig:interpretacionclusters}
+    \small
+    \fbox{\begin{minipage}[c][1.05cm][c]{0.17\textwidth}\centering Dataset\\OpenPlay\end{minipage}}
+    $\rightarrow$
+    \fbox{\begin{minipage}[c][1.05cm][c]{0.17\textwidth}\centering Preprocesamiento\\e integraci\'on\end{minipage}}
+    $\rightarrow$
+    \fbox{\begin{minipage}[c][1.05cm][c]{0.17\textwidth}\centering Vector de\\caracter\'isticas\end{minipage}}
+    $\rightarrow$
+    \fbox{\begin{minipage}[c][1.05cm][c]{0.17\textwidth}\centering PCA / UMAP\\t-SNE\end{minipage}}
+
+    \vspace{0.35cm}
+
+    \fbox{\begin{minipage}[c][1.05cm][c]{0.17\textwidth}\centering Clustering\\exploratorio\end{minipage}}
+    $\rightarrow$
+    \fbox{\begin{minipage}[c][1.05cm][c]{0.17\textwidth}\centering Vistas\\coordinadas\end{minipage}}
+    $\rightarrow$
+    \fbox{\begin{minipage}[c][1.05cm][c]{0.17\textwidth}\centering Casos de\\estudio\end{minipage}}
+    $\rightarrow$
+    \fbox{\begin{minipage}[c][1.05cm][c]{0.17\textwidth}\centering Validaci\'on\\cruzada\end{minipage}}
+    \caption{Pipeline visual de OpenPlay Profiler. El flujo parte del dataset integrado, construye una representaci\'on comparable por participante y termina en casos de estudio validados con m\'as de una vista.}
+    \label{fig:pipeline_visual}
 \end{figure}
 
-\section{Discusi\'on}
+Este pipeline permite que el usuario no dependa de una sola salida visual. Cada hallazgo puede contrastarse con la cobertura, el vector, la proyecci\'on, la matriz de correlaci\'on, la comparaci\'on bivariada y la interpretaci\'on por variables originales. Por eso el resultado central no es una imagen aislada, sino un conjunto de casos validados: cobertura desigual, intensidad nocturna, bienestar/riesgo con uso registrado y perfil multiplataforma.
 
-Los resultados muestran que el clustering permite distinguir perfiles de jugadores m\'as espec\'ificos que una simple separaci\'on visual por colores. La interpretaci\'on por variables originales es fundamental, porque permite explicar por qu\'e un grupo se separa de otro. Por ejemplo, algunos clusters se diferencian por actividad nocturna, otros por cobertura de telemetr\'ia y otros por cantidad de registros de uso del tiempo.
+\section{Dise\~no visual}
 
-Una limitaci\'on importante es que los clusters dependen del vector de caracter\'isticas seleccionado y de los par\'ametros de UMAP y K-means. Por ello, los grupos no deben considerarse categor\'ias definitivas. Su valor principal est\'a en apoyar la exploraci\'on y generar hip\'otesis sobre patrones de comportamiento que podr\'ian analizarse posteriormente con m\'etodos estad\'isticos o predictivos.
+La interfaz se organiza en pesta\~nas: Datos, Profiling, Bivariado, Encuestas, Vector, Filtros, PCA/t-SNE/UMAP y Validaci\'on. Esta organizaci\'on sigue el flujo del an\'alisis: primero se entiende el dataset, luego se revisan variables, se construye el vector, se aplican filtros, se proyectan participantes, se interpretan perfiles y finalmente se validan los patrones mediante estudios de caso.
+
+El dise\~no visual no fue planteado como una colecci\'on de gr\'aficos independientes. Cada vista cumple una funci\'on dentro del razonamiento anal\'itico. La vista de datos permite decidir si una fuente es confiable; profiling ayuda a revisar calidad de variables; bivariado permite comprobar relaciones espec\'ificas; encuestas separa las escalas psicol\'ogicas; vector justifica qu\'e atributos entran al modelo; reducci\'on dimensional permite observar perfiles; filtros comprueban si un patr\'on se mantiene en una submuestra; y validaci\'on resume los casos de estudio con evidencia visual.
+
+\subsection{Vistas del sistema}
+
+\textbf{Vista de datos y resumen BI.} Presenta participantes, variables, tipos de datos, faltantes promedio y cobertura por fuente. Apoya T1 porque permite saber si un patr\'on se basa en una fuente con buena cobertura o en pocos registros. Esta vista alimenta directamente el Caso 1, donde la cobertura se convierte en criterio de confiabilidad. La Figura \ref{fig:data_view} muestra esta vista con el dataset consolidado cargado.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/fig00_data_view.png}
+    \caption{Vista de datos y resumen BI tomada desde el proyecto. La pantalla muestra el dataset consolidado cargado, los indicadores generales y la cobertura por fuente integrada.}
+    \label{fig:data_view}
+\end{figure}
+
+\textbf{Vista de profiling.} Muestra estad\'isticas univariadas, distribuciones, frecuencias y valores faltantes por columna. Apoya T1 y T2 porque ayuda a decidir qu\'e variables son adecuadas para el vector. La Figura \ref{fig:profiling_view} muestra esta revisi\'on de columnas dentro de la interfaz.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/fig00_profiling_view.png}
+    \caption{Vista de profiling tomada desde el proyecto. La interfaz permite inspeccionar columnas, tipos de dato, faltantes, distribuciones y estad\'isticas descriptivas.}
+    \label{fig:profiling_view}
+\end{figure}
+
+\textbf{Vista bivariada.} Permite comparar dos variables mediante dispersi\'on y color por una tercera variable. Apoya T3 porque permite revisar relaciones entre bienestar, riesgo, telemetr\'ia o cognici\'on. Es especialmente importante para validar el Caso 2, donde se contrasta la relaci\'on entre sesiones totales y sesiones nocturnas. La Figura \ref{fig:bivariate_view} muestra la vista usada para explorar relaciones entre pares de variables.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/fig00_bivariate_view.png}
+    \caption{Vista bivariada tomada desde el proyecto. El usuario puede elegir variables para los ejes, colorear por otra dimensi\'on y revisar relaciones antes de interpretar perfiles.}
+    \label{fig:bivariate_view}
+\end{figure}
+
+\textbf{Vista de encuestas e \'indices.} Organiza escalas como GDT, PROMIS, WEMWBS y BANGS. Apoya T2 y T3 porque permite interpretar variables psicol\'ogicas como dimensiones del vector, no como columnas aisladas. Esta vista respalda el Caso 3, donde las escalas de bienestar y riesgo se analizan junto con registros de uso del tiempo. La Figura \ref{fig:surveys_view} muestra la organizaci\'on de estas escalas en la herramienta.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/fig00_surveys_view.png}
+    \caption{Vista de encuestas e \'indices tomada desde el proyecto. La pantalla agrupa medidas de bienestar y riesgo para apoyar la comparaci\'on de escalas psicol\'ogicas.}
+    \label{fig:surveys_view}
+\end{figure}
+
+\textbf{Vista de vector de caracter\'isticas.} Permite seleccionar variables y evaluar cobertura, casos completos y correlaciones altas. Apoya T2 porque ayuda a construir una representaci\'on defendible del participante. La Figura \ref{fig:vector_view} muestra el vector recomendado aplicado en el proyecto y la advertencia de correlaci\'on usada como apoyo metodol\'ogico.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/fig00_vector_view.png}
+    \caption{Vista de vector de caracter\'isticas tomada desde el proyecto. El sistema muestra el vector recomendado, las variables seleccionadas y una alerta de correlaciones altas para apoyar la selecci\'on de atributos.}
+    \label{fig:vector_view}
+\end{figure}
+
+\textbf{Vista de filtros.} Permite restringir participantes por variables num\'ericas o categ\'oricas. Apoya T1, T4, T5 y T6 porque permite revisar si un patr\'on se mantiene dentro de submuestras. Es una vista de control: ayuda a separar patrones de comportamiento de patrones provocados por baja cobertura. La Figura \ref{fig:filters_view} muestra los controles disponibles para restringir la muestra.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/fig00_filters_view.png}
+    \caption{Vista de filtros tomada desde el proyecto. Los controles permiten limitar participantes por variables num\'ericas, categ\'oricas y banderas de disponibilidad antes de validar un patr\'on.}
+    \label{fig:filters_view}
+\end{figure}
+
+\textbf{Vista de reducci\'on dimensional y clustering.} Proyecta participantes con PCA, UMAP o t-SNE, colorea por variable o cluster, permite selecci\'on con click/lazo, ejecuta clustering, calcula m\'etricas y muestra interpretaci\'on por variables originales. Apoya T4, T5 y T6. Esta vista permite localizar perfiles, pero no se interpreta sola: la explicaci\'on de cada grupo se valida con las variables originales. La Figura \ref{fig:reduction_view} muestra la proyecci\'on PCA generada desde la aplicaci\'on.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/fig00_reduction_view.png}
+    \caption{Vista de reducci\'on dimensional y clustering tomada desde el proyecto. La proyecci\'on 2D permite explorar participantes, colorear por variable, ejecutar agrupamiento y seleccionar puntos o grupos.}
+    \label{fig:reduction_view}
+\end{figure}
+
+\textbf{Vista de validaci\'on.} Resume los cuatro estudios de caso del proyecto. Para cada caso muestra pregunta anal\'itica, variables usadas, patr\'on encontrado, gr\'afico de evidencia y explicaci\'on de validaci\'on. Los gr\'aficos de esta vista no son im\'agenes est\'aticas: se calculan desde el dataset cargado en la aplicaci\'on, permiten \textit{hover}, selecci\'on de puntos, apertura del modal de participante y generaci\'on de perfiles agregados para los puntos seleccionados. Su prop\'osito es demostrar que el sistema permite extraer conocimiento, no solo visualizar datos. La Figura \ref{fig:validation_view} muestra esta pesta\~na con los casos de cobertura e intensidad nocturna.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/fig00_validation_view.png}
+    \caption{Vista de validaci\'on interactiva tomada desde el proyecto. Los casos de estudio se calculan desde el dataset cargado y permiten revisar cobertura, perfiles, bienestar, riesgo y telemetr\'ia con interacci\'on.}
+    \label{fig:validation_view}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Relaci\'on entre vistas, interacciones y tareas}
+\begin{tabularx}{\textwidth}{p{2.8cm} p{2.8cm} p{3.2cm} p{3.1cm} X}
+\toprule
+\textbf{Vista} & \textbf{Tipo} & \textbf{Variables representadas} & \textbf{Interacciones} & \textbf{Tareas} \\
+\midrule
+Datos / resumen BI & Indicadores y barras de cobertura & Participantes, variables, fuentes, faltantes & Carga de dataset y revisi\'on de resumen & T1 \\
+Profiling & Histogramas, tablas y frecuencias & Columnas num\'ericas y categ\'oricas & Selecci\'on de columna, revisi\'on de distribuci\'on & T1, T2 \\
+Bivariado & Scatter plot y correlaci\'on & Dos variables principales y una variable de color & Cambio de ejes, color, tooltip & T3 \\
+Encuestas e \'indices & Descomposici\'on de escalas y heatmap & GDT, PROMIS, WEMWBS, BANGS & Selecci\'on de variables y comparaci\'on de \'items & T2, T3 \\
+Vector & Lista de variables, evaluaci\'on y recomendaciones & Variables num\'ericas seleccionadas, cobertura, correlaci\'on & Agregar/quitar variables, usar vector recomendado & T2 \\
+Filtros & Controles num\'ericos y categ\'oricos & Variables del dataset y selecciones globales & Filtrar, limpiar filtros, restringir casos & T1, T4, T5, T6 \\
+PCA/t-SNE/UMAP & Proyecci\'on 2D, clustering y tablas & Coordenadas, color, clusters, variables originales & Zoom, lazo, click, selecci\'on de grupos, at\'ipicos y clusters & T4, T5, T6 \\
+Validaci\'on & Gr\'aficos interactivos y lectura guiada & Cobertura, clusters, bienestar, riesgo, telemetr\'ia y uso del tiempo & Hover, click, selecci\'on por lazo/caja y perfil agregado & T1, T3, T4, T5, T6 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Relaci\'on entre vistas y estudios de caso}
+\begin{tabularx}{\textwidth}{p{3.2cm} p{4.2cm} p{4.2cm} X}
+\toprule
+\textbf{Caso de estudio} & \textbf{Vista principal} & \textbf{Vista de confirmaci\'on} & \textbf{Conocimiento validado} \\
+\midrule
+Cobertura y confiabilidad & Datos / resumen BI & Profiling y filtros & No todas las fuentes tienen la misma fuerza de evidencia; Android, iOS y Xbox requieren cautela. \\
+Intensidad nocturna & PCA/t-SNE/UMAP y clustering & Bivariado e interpretaci\'on por variables originales & Existe un perfil con sesiones totales y sesiones nocturnas muy superiores al promedio. \\
+Bienestar, riesgo y uso registrado & Encuestas e \'indices & Perfil de clusters, filtros y uso del tiempo & Un grupo combina mayor PROMIS, mayor GDT/BANGS, menor WEMWBS y m\'as registros de uso del tiempo. \\
+Perfil multiplataforma & Vector y clustering & Cobertura por fuente y filtros & Un perfil se explica por mayor observabilidad multiplataforma, no solo por intensidad de juego. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Coordinaci\'on entre vistas}
+
+La coordinaci\'on es importante porque evita interpretar un patr\'on desde una sola imagen. Por ejemplo, un grupo separado en la proyecci\'on puede revisarse con la tabla de variables originales; si adem\'as se filtra por cobertura y se compara en la vista bivariada, el usuario puede distinguir entre un perfil real y un efecto producido por datos faltantes. Del mismo modo, un perfil de juego nocturno o un perfil multiplataforma puede contrastarse con las variables originales, las banderas de disponibilidad y los filtros. Esta relaci\'on entre vistas convierte el sistema en una herramienta de an\'alisis visual y no solo en un conjunto de gr\'aficos independientes.
+
+El flujo de validaci\'on funciona de la siguiente manera. Primero, el usuario identifica una posible separaci\'on o concentraci\'on en la vista de reducci\'on dimensional. Luego revisa qu\'e variables diferencian al grupo en la tabla de interpretaci\'on. Despu\'es usa una vista espec\'ifica, como bivariado, encuestas, cobertura o filtros, para confirmar si el patr\'on se mantiene. Finalmente, la vista de validaci\'on resume el caso con una figura y una lectura concreta. Este flujo responde directamente a la indicaci\'on de validar conocimiento mediante varias vistas conectadas.
+
+\section{Discusi\'on, estudios de caso y validaci\'on}
+
+Esta secci\'on valida la propuesta visual mediante estudios de caso centrados en patrones del problema OpenPlay. No se busca demostrar solamente que dos puntos est\'an cerca o lejos, sino que la herramienta permite explicar comportamientos de juego, cobertura de datos, bienestar y perfiles exploratorios usando varias vistas conectadas.
+
+Para apoyar la validaci\'on del informe se incluyen figuras generadas a partir del archivo \texttt{openplay\_consolidated.csv}; estas figuras documentan los mismos patrones que la pesta\~na interactiva de validaci\'on calcula dentro del proyecto. En la aplicaci\'on, los gr\'aficos se recalculan desde el dataset cargado y permiten inspeccionar puntos, abrir participantes y seleccionar grupos. En el documento, las figuras funcionan como evidencia visual para la entrega escrita.
+
+El vector usado para la validaci\'on integra variables num\'ericas de demograf\'ia, plataformas, bienestar, riesgo, telemetr\'ia, cognici\'on y uso del tiempo. Las variables se preparan antes de aplicar reducci\'on dimensional y clustering, de modo que las diferencias entre participantes no dependan de escalas originales incompatibles.
+
+Para los casos de estudio se utiliz\'o el vector integral recomendado de 19 variables, imputaci\'on por media en la proyecci\'on PCA/t-SNE/UMAP, estandarizaci\'on de variables num\'ericas, proyecci\'on PCA como vista principal y clustering K-means con $k=4$. En la pesta\~na de validaci\'on interactiva, los perfiles agregados usan imputaci\'on por mediana antes de estandarizar, lo que permite comparar participantes con cobertura parcial. Los patrones se interpretaron con variables originales y no \'unicamente con la posici\'on de los puntos. Esta configuraci\'on permite reproducir la lectura de perfiles y comparar los resultados entre la vista de reducci\'on dimensional, la vista bivariada, las vistas de cobertura, las encuestas y la validaci\'on interactiva.
+
+\begin{table}[H]
+\centering
+\caption{Resumen de patrones encontrados y validaci\'on visual}
+\footnotesize
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{p{3.1cm} p{4.6cm} X}
+\toprule
+\textbf{Patr\'on encontrado} & \textbf{Evidencia usada} & \textbf{Conocimiento validado} \\
+\midrule
+Cobertura desigual de fuentes &
+\textbf{Variables:} \texttt{has\_steam}, \texttt{has\_daily}, \texttt{has\_cognitive}, \texttt{has\_android}, \texttt{has\_ios}. \newline
+\textbf{Vistas:} datos, profiling y validaci\'on. &
+No todas las fuentes tienen la misma confiabilidad para interpretar perfiles. Steam, biweekly y cognici\'on sostienen mejor evidencia que Android, iOS o Xbox. Se confirma con cobertura por fuente y revisi\'on de faltantes. \\
+\addlinespace
+Juego nocturno asociado a intensidad &
+\textbf{Variables:} \texttt{telem\_nocturnal\_sessions}, \texttt{telem\_total\_sessions}. \newline
+\textbf{Vistas:} bivariado, PCA y clustering. &
+Los jugadores con m\'as actividad registrada tienden a concentrar m\'as sesiones nocturnas. Se confirma en el scatter bivariado y en el perfil estandarizado de cluster. \\
+\addlinespace
+Bienestar/riesgo con uso registrado &
+\textbf{Variables:} \texttt{promis\_total}, \texttt{wemwbs\_total}, \texttt{gdt\_total}, \texttt{bangs\_total}, \texttt{timeuse\_gaming\_entries}. \newline
+\textbf{Vistas:} encuestas, clustering y validaci\'on. &
+Hay un perfil con mayor riesgo, mayor malestar relativo y m\'as registros de uso del tiempo asociados a videojuegos. Se confirma con medias estandarizadas y filtros de disponibilidad. \\
+\addlinespace
+Perfil multiplataforma &
+\textbf{Variables:} \texttt{num\_platforms}, \texttt{num\_telemetry\_platforms}, Steam, Xbox y Nintendo. \newline
+\textbf{Vistas:} filtros, vector y clustering. &
+Un grupo se explica por mayor observabilidad y cobertura multiplataforma, no solo por m\'as juego. Se confirma cruzando cobertura por fuente y cluster. \\
+\bottomrule
+\end{tabularx}
+\renewcommand{\arraystretch}{1}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/fig02_pca_clusters.png}
+    \caption{Proyecci\'on 2D del vector de caracter\'isticas con perfiles exploratorios. La vista permite ubicar grupos y seleccionar participantes; la interpretaci\'on se valida con variables originales en las figuras siguientes.}
+    \label{fig:pca_clusters}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/fig03_perfil_clusters.png}
+    \caption{Perfil estandarizado de los clusters. Los valores positivos indican medias del cluster por encima del promedio global y los negativos indican medias por debajo. Esta vista explica qu\'e variables sostienen cada perfil.}
+    \label{fig:perfil_clusters}
+\end{figure}
+
+\subsection{Caso de estudio 1: cobertura de datos y confiabilidad del an\'alisis}
+
+\textbf{Pregunta anal\'itica.} ?Qu\'e fuentes de OpenPlay tienen suficiente cobertura para sostener una interpretaci\'on visual y cu\'ales deben leerse con mayor cautela?
+
+\textbf{Vistas utilizadas.} Vista de datos, resumen BI, profiling, filtros por banderas de disponibilidad y vista de vector de caracter\'isticas.
+
+\textbf{Variables analizadas.} \texttt{has\_steam}, \texttt{has\_xbox}, \texttt{has\_nintendo}, \texttt{has\_android}, \texttt{has\_ios}, \texttt{has\_cognitive}, \texttt{has\_timeuse}, porcentaje de faltantes y tipo de variable.
+
+\textbf{Interacci\'on.} El usuario revisa la cobertura general en la vista de datos, selecciona columnas en profiling para observar faltantes y tipos de dato, y usa filtros por banderas de disponibilidad para comprobar cu\'antos participantes quedan cuando se exige una fuente espec\'ifica.
+
+\textbf{Patr\'on encontrado.} La cobertura no es uniforme entre fuentes. Steam tiene una presencia mucho mayor que Android, iOS o Xbox, mientras que cognici\'on y uso del tiempo tienen cobertura intermedia. Este patr\'on indica que las conclusiones sobre actividad en Steam pueden apoyarse en m\'as casos, pero las lecturas sobre m\'oviles o Xbox deben tratarse como submuestras con menor representaci\'on.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{figures/fig01_cobertura_fuentes.png}
+    \caption{Caso 1: cobertura por fuente integrada en OpenPlay. Steam, biweekly y cognici\'on tienen mayor presencia, mientras que Android, iOS y Xbox aparecen como fuentes de baja cobertura.}
+    \label{fig:cobertura_fuentes}
+\end{figure}
+
+\textbf{Validaci\'on cruzada.} La Figura \ref{fig:cobertura_fuentes} muestra que Steam cubre 80.1\% de los participantes, biweekly 62.7\%, cognici\'on 57.1\% y uso del tiempo 44.6\%. En contraste, Xbox cubre 10.9\%, iOS 3.7\% y Android 2.9\%. El profiling confirma el mismo patr\'on al mostrar faltantes por columna y tipos de dato. La vista de filtros permite restringir el an\'alisis a participantes con una fuente espec\'ifica y comprobar cu\'antos casos quedan antes de interpretar una separaci\'on o un cluster.
+
+\textbf{Interpretaci\'on.} Este caso muestra que el primer conocimiento extra\'ido no es un cluster, sino una advertencia metodol\'ogica: la herramienta permite distinguir entre patrones de comportamiento y patrones producidos por disponibilidad desigual de datos.
+
+\textbf{Validaci\'on de la herramienta.} La propuesta se valida porque incorpora control de calidad visual antes del modelado. Frente a un an\'alisis exploratorio b\'asico, el sistema no solo calcula gr\'aficos, sino que orienta al usuario sobre qu\'e evidencia es m\'as fuerte y qu\'e evidencia requiere cautela. Por tanto, este caso demuestra que la herramienta no solo visualiza datos, sino que permite validar un patr\'on mediante la relaci\'on entre cobertura, variables originales y vistas coordinadas.
+
+\subsection{Caso de estudio 2: juego nocturno e intensidad de actividad}
+
+\textbf{Pregunta anal\'itica.} ?Existe un perfil de participantes cuya separaci\'on visual se relacione con mayor intensidad de juego y mayor presencia de sesiones nocturnas?
+
+\textbf{Vistas utilizadas.} Vista PCA/UMAP/t-SNE, color por variable, clustering, tabla de interpretaci\'on por variables originales y vista bivariada.
+
+\textbf{Variables analizadas.} \texttt{telem\_nocturnal\_sessions}, \texttt{telem\_total\_sessions}, \texttt{xbox\_total\_sessions}, \texttt{nintendo\_total\_sessions}, \texttt{steam\_playtime\_2weeks\_max}, edad y variables de disponibilidad de telemetr\'ia.
+
+\textbf{Interacci\'on.} El usuario selecciona las variables de sesiones totales y sesiones nocturnas en la vista bivariada, activa la tendencia, colorea por una escala de riesgo o por cluster, y despu\'es contrasta el mismo grupo en la proyecci\'on PCA con K-means.
+
+\textbf{Patr\'on encontrado.} Al colorear la proyecci\'on por sesiones nocturnas y luego ejecutar clustering, aparece un grupo cuya interpretaci\'on se asocia con mayor cantidad de sesiones totales y mayor presencia de juego nocturno. El patr\'on no se basa en una sola columna: combina volumen de actividad, horario de juego y presencia de registros de telemetr\'ia.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.86\textwidth]{figures/fig04_intensidad_nocturna.png}
+    \caption{Caso 2: relaci\'on entre sesiones totales y sesiones nocturnas. El perfil C2 se concentra en la zona superior derecha, lo que valida que su separaci\'on est\'a asociada a mayor intensidad de actividad y mayor presencia de sesiones nocturnas.}
+    \label{fig:intensidad_nocturna}
+\end{figure}
+
+\textbf{Validaci\'on cruzada.} La Figura \ref{fig:intensidad_nocturna} compara \texttt{telem\_nocturnal\_sessions} con \texttt{telem\_total\_sessions} y muestra que el perfil C2 se concentra en valores altos de ambas variables. Adem\'as, la Figura \ref{fig:perfil_clusters} confirma que C2 tiene diferencias estandarizadas de aproximadamente $+4.1$ en sesiones nocturnas y $+4.1$ en sesiones totales frente al promedio global.
+
+\textbf{Interpretaci\'on.} El conocimiento obtenido es la identificaci\'on de un perfil exploratorio de mayor intensidad y actividad nocturna. Esta interpretaci\'on es relevante porque vincula comportamiento temporal de juego con volumen de uso, sin convertirlo en diagn\'ostico.
+
+\textbf{Validaci\'on de la herramienta.} El caso valida la herramienta porque el patr\'on se sostiene con proyecci\'on, color por variable, vista bivariada e interpretaci\'on de cluster. No queda reducido a una impresi\'on visual de la nube de puntos. Por tanto, este caso demuestra que la herramienta no solo visualiza datos, sino que permite validar un patr\'on mediante la relaci\'on entre intensidad de actividad, variables originales y vistas coordinadas.
+
+\subsection{Caso de estudio 3: bienestar, riesgo y uso registrado}
+
+\textbf{Pregunta anal\'itica.} ?Existe un perfil donde las variables de bienestar y riesgo se diferencien claramente y, adem\'as, se relacionen con mayor registro de uso del tiempo?
+
+\textbf{Vistas utilizadas.} Resumen BI, filtros, vector de caracter\'isticas, clustering, tabla de interpretaci\'on por variables originales y vista de encuestas.
+
+\textbf{Variables analizadas.} \texttt{promis\_total}, \texttt{wemwbs\_total}, \texttt{gdt\_total}, \texttt{bangs\_total}, \texttt{timeuse\_num\_days}, \texttt{timeuse\_gaming\_entries}, \texttt{has\_cognitive}, \texttt{has\_timeuse} y \texttt{has\_biweekly}.
+
+\textbf{Interacci\'on.} El usuario activa el vector recomendado, revisa las escalas en la vista de encuestas, filtra participantes con datos biweekly y uso del tiempo, y compara las medias estandarizadas del cluster frente al promedio global.
+
+\textbf{Patr\'on encontrado.} En la interpretaci\'on de clusters aparece un perfil con mayor \texttt{promis\_total}, menor \texttt{wemwbs\_total}, mayor \texttt{gdt\_total} y mayor \texttt{bangs\_total}. El mismo grupo presenta m\'as entradas de uso del tiempo relacionadas con videojuegos y m\'as d\'ias registrados. Por tanto, el patr\'on no es solo psicol\'ogico ni solo conductual: combina mayor malestar reportado, mayor riesgo de juego problem\'atico y mayor cantidad de registros de uso del tiempo.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.86\textwidth]{figures/fig05_bienestar_riesgo.png}
+    \caption{Caso 3: contraste estandarizado de bienestar y riesgo por perfil. El perfil C3 presenta PROMIS, GDT y BANGS por encima del promedio, junto con WEMWBS por debajo del promedio.}
+    \label{fig:bienestar_riesgo}
+\end{figure}
+
+\textbf{Validaci\'on cruzada.} La Figura \ref{fig:bienestar_riesgo} confirma el contraste de escalas: C3 se ubica por encima del promedio en PROMIS, GDT y BANGS, y por debajo en WEMWBS. La Figura \ref{fig:perfil_clusters} confirma adem\'as que C3 tiene valores positivos en \texttt{timeuse\_gaming\_entries} y \texttt{timeuse\_num\_days}. La vista de encuestas permite revisar estas escalas como dimensiones separadas, mientras que los filtros permiten comprobar que el patr\'on se sostiene en participantes con datos biweekly y uso del tiempo.
+
+\textbf{Interpretaci\'on.} Este caso aporta conocimiento porque identifica un perfil que no se explica solo por jugar m\'as o por tener m\'as datos. La combinaci\'on de m\'as registros de uso del tiempo con mayor PROMIS, mayor GDT/BANGS y menor WEMWBS sugiere un grupo que merece an\'alisis posterior sobre la relaci\'on entre bienestar reportado, riesgo y actividad registrada.
+
+\textbf{Validaci\'on de la herramienta.} La herramienta se valida porque permite revisar simult\'aneamente escalas psicol\'ogicas, variables de uso del tiempo, clustering y filtros de disponibilidad. Esto evita presentar el grupo como ``jugadores con malestar'' sin verificar qu\'e variables sostienen esa lectura. Por tanto, este caso demuestra que la herramienta no solo visualiza datos, sino que permite validar un patr\'on mediante la relaci\'on entre bienestar, riesgo, uso registrado y vistas coordinadas.
+
+\subsection{Caso de estudio 4: perfil multiplataforma con alta cobertura}
+
+\textbf{Pregunta anal\'itica.} ?Qu\'e caracteriza a los participantes con mayor cobertura multiplataforma dentro de la proyecci\'on y los clusters?
+
+\textbf{Vistas utilizadas.} Vista de vector de caracter\'isticas, evaluaci\'on del vector, proyecci\'on UMAP, clustering K-means, tabla de clusters e interpretaci\'on por variables originales.
+
+\textbf{Variables analizadas.} \texttt{num\_telemetry\_platforms}, \texttt{num\_platforms}, \texttt{has\_steam}, \texttt{has\_xbox}, \texttt{has\_nintendo}, \texttt{timeuse\_num\_days}, \texttt{timeuse\_gaming\_entries}, \texttt{telem\_total\_sessions} y variables de cobertura.
+
+\textbf{Interacci\'on.} El usuario selecciona el vector recomendado, aplica filtros por n\'umero de plataformas o disponibilidad de telemetr\'ia, ejecuta clustering K-means y compara la cobertura por fuente entre perfiles.
+
+\textbf{Patr\'on encontrado.} Con K-means sobre el vector estandarizado se obtuvo un perfil asociado a mayor n\'umero de plataformas y mayor n\'umero de plataformas con telemetr\'ia. Este grupo se diferencia porque no representa solo m\'as tiempo de juego, sino mayor presencia de datos provenientes de varias fuentes. La distribuci\'on usada como referencia fue: C0 con 638 participantes, C1 con 1305, C2 con 112 y C3 con 489.
+
+\begin{table}[H]
+\centering
+\caption{Interpretaci\'on de perfiles exploratorios}
+\begin{tabularx}{\textwidth}{p{2.2cm} p{2.2cm} X}
+\toprule
+\textbf{Perfil} & \textbf{Tama\~no} & \textbf{Lectura anal\'itica} \\
+\midrule
+C0 & 638 & Mayor n\'umero de plataformas declaradas y mayor n\'umero de plataformas con telemetr\'ia. Se interpreta como perfil multiplataforma con alta cobertura. \\
+C1 & 1305 & Menor intensidad de actividad registrada, menor cobertura de telemetr\'ia y valores de bienestar/riesgo cercanos o favorables frente al promedio. Funciona como grupo base de baja intensidad relativa. \\
+C2 & 112 & Mayor cantidad de sesiones nocturnas y sesiones totales. Se interpreta como perfil de alta intensidad y presencia marcada de juego nocturno. \\
+C3 & 489 & Mayor PROMIS, mayor GDT/BANGS, menor WEMWBS y m\'as registros de uso del tiempo relacionados con videojuegos. Se interpreta como mayor malestar y uso registrado. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figures/fig06_cobertura_por_cluster.png}
+    \caption{Caso 4: cobertura de fuentes por perfil. C0 concentra mayor cobertura Steam y Nintendo, mientras que C2 concentra Xbox. C3 presenta alta cobertura biweekly, cognici\'on y uso del tiempo, lo que fortalece la lectura del caso de bienestar y riesgo.}
+    \label{fig:cobertura_cluster}
+\end{figure}
+
+\textbf{Validaci\'on cruzada.} La interpretaci\'on por variables originales confirma que el perfil multiplataforma no es solo un color en el mapa: en la Figura \ref{fig:perfil_clusters}, C0 presenta valores positivos fuertes en \texttt{num\_platforms} y \texttt{num\_telemetry\_platforms}. Adem\'as, la Figura \ref{fig:cobertura_cluster} muestra que C0 concentra alta cobertura Steam y Nintendo, lo que explica por qu\'e se separa como perfil de mayor observabilidad multiplataforma.
+
+\textbf{Interpretaci\'on.} El perfil multiplataforma permite formular una hip\'otesis distinta a la de intensidad: no todos los grupos se explican por jugar m\'as, algunos se explican por tener actividad distribuida y registrada en m\'as plataformas. Esto es importante porque la cobertura puede aumentar la riqueza del perfil, pero tambi\'en puede introducir diferencias de observabilidad.
+
+\textbf{Validaci\'on de la herramienta.} Este caso valida la herramienta porque demuestra el flujo completo: vector, proyecci\'on, clustering, m\'etricas e interpretaci\'on con variables originales. La propuesta visual permite pasar de una nube de puntos a perfiles explicables. Por tanto, este caso demuestra que la herramienta no solo visualiza datos, sino que permite validar un patr\'on mediante la relaci\'on entre cobertura multiplataforma, variables originales y vistas coordinadas.
+
+\subsection{Validaci\'on de la propuesta visual}
+
+La herramienta permite encontrar conocimiento porque transforma datos heterog\'eneos en una exploraci\'on guiada. No se limita a mostrar distribuciones; permite formular preguntas, seleccionar casos, comparar participantes, revisar cobertura y explicar grupos con variables originales.
+
+Las vistas responden a las tareas anal\'iticas planteadas. El resumen BI responde a la calidad de datos; profiling y vector responden a la selecci\'on de variables; la matriz de correlaci\'on y la vista bivariada responden a relaciones entre variables; la reducci\'on dimensional responde a similitud y separaci\'on visual; el clustering responde a perfiles exploratorios; y la selecci\'on coordinada responde a validaci\'on de casos.
+
+Los patrones se confirman con m\'as de una visualizaci\'on. Por ejemplo, la Figura \ref{fig:pca_clusters} permite ubicar perfiles en la proyecci\'on 2D; el perfil de juego nocturno se interpreta con diferencias estandarizadas en la Figura \ref{fig:perfil_clusters} y se contrasta en la vista bivariada de la Figura \ref{fig:intensidad_nocturna}; el perfil de mayor malestar se valida con la Figura \ref{fig:bienestar_riesgo}; y el perfil multiplataforma se valida con cobertura por cluster en la Figura \ref{fig:cobertura_cluster}. Esta triangulaci\'on reduce el riesgo de sacar conclusiones por una sola vista.
+
+La interacci\'on entre vistas ayuda a profundizar el an\'alisis porque el usuario puede pasar de una pregunta general a un caso concreto. Frente a un an\'alisis exploratorio b\'asico, la propuesta aporta trazabilidad del razonamiento: se puede explicar qu\'e variables se usaron, qu\'e modelo produjo la proyecci\'on, qu\'e grupo se detect\'o, qu\'e variables lo diferencian y qu\'e limitaciones tiene la interpretaci\'on.
 
 \section{Conclusiones}
 
-El proyecto permiti\'o identificar perfiles exploratorios de jugadores en el dataset OpenPlay mediante un flujo de ciencia de datos basado en selecci\'on de variables, reducci\'on dimensional y clustering. El vector de caracter\'isticas fue clave para representar a cada participante de manera integral, considerando dimensiones de juego, bienestar, telemetr\'ia, cognici\'on y uso del tiempo.
+El proyecto logr\'o construir y validar una herramienta de visualizaci\'on anal\'itica para explorar el dataset OpenPlay desde una perspectiva multivariada. OpenPlay Profiler integra bienestar, riesgo de juego problem\'atico, telemetr\'ia, cognici\'on, plataformas y uso del tiempo en un flujo que va desde la revisi\'on de calidad de datos hasta la interpretaci\'on de perfiles exploratorios. La contribuci\'on principal no es solo mostrar una proyecci\'on de participantes, sino permitir que cada patr\'on observado se contraste con variables originales, cobertura y vistas de confirmaci\'on.
 
-El uso de UMAP facilit\'o observar la estructura general de los participantes en dos dimensiones, mientras que K-means permiti\'o formar cuatro grupos interpretables. La revisi\'on de variables originales permiti\'o caracterizar los clusters como perfiles de actividad gaming registrada, baja trazabilidad con mayor malestar, alta cobertura multiplataforma y alta intensidad con juego nocturno.
+Las tareas anal\'iticas cubiertas incluyen evaluar cobertura, seleccionar y justificar el vector de caracter\'isticas, revisar relaciones entre variables, proyectar participantes, aplicar clustering, interpretar subgrupos y validar hallazgos mediante estudios de caso. Estas tareas se conectan con vistas espec\'ificas de la interfaz: datos y profiling para calidad, vector para selecci\'on de atributos, bivariado y encuestas para confirmaci\'on, reducci\'on dimensional para exploraci\'on de grupos, filtros para control de submuestras y validaci\'on para sintetizar la evidencia.
+
+Los estudios de caso permitieron validar cuatro hallazgos principales. Primero, la cobertura de fuentes es desigual: Steam, biweekly y cognici\'on ofrecen mayor evidencia, mientras que Android, iOS y Xbox deben interpretarse con cautela. Segundo, existe un perfil de alta intensidad y juego nocturno, confirmado por la relaci\'on entre sesiones totales y sesiones nocturnas. Tercero, se identific\'o un perfil con mayor PROMIS, mayor GDT/BANGS, menor WEMWBS y m\'as registros de uso del tiempo relacionados con videojuegos. Cuarto, se observ\'o un perfil de alta cobertura multiplataforma, explicado por mayor n\'umero de plataformas y mayor disponibilidad de telemetr\'ia. Estos perfiles no son diagn\'osticos ni categor\'ias definitivas, sino agrupamientos exploratorios para formular hip\'otesis.
+
+El dise\~no visual ayud\'o a extraer conocimiento porque oblig\'o a validar los patrones desde m\'as de una vista. La proyecci\'on 2D permiti\'o ubicar grupos; el perfil estandarizado de clusters explic\'o qu\'e variables diferenciaban a cada grupo; los gr\'aficos bivariados validaron relaciones espec\'ificas como intensidad y nocturnidad; las vistas de encuestas ayudaron a interpretar bienestar y riesgo; y la cobertura por fuente permiti\'o distinguir entre comportamiento observado y disponibilidad desigual de datos. Esta coordinaci\'on reduce el riesgo de concluir solo por la forma de una nube de puntos.
+
+Entre las limitaciones se encuentran la alta presencia de valores faltantes, la cobertura desigual por plataforma, la dependencia del vector seleccionado, el uso de imputaci\'on para completar variables y la sensibilidad de PCA, UMAP, t-SNE y clustering a sus par\'ametros. Como mejoras futuras se propone evaluar estabilidad de clusters con varias configuraciones, comparar clustering en el espacio original estandarizado y en proyecciones 2D, incorporar m\'etricas estad\'isticas de separaci\'on entre perfiles, enriquecer el diccionario de datos y generar reportes autom\'aticos de los estudios de caso desde la propia interfaz.
+
+\section{Referencias}
 
 \begin{thebibliography}{00}
-\bibitem{openplay} N. Ballou et al., ``Open Play: A longitudinal dataset of multi-platform video game digital trace data and psychological measures,'' 2026. [Online]. Available: https://www.researchgate.net/publication/397614989
-\bibitem{who} World Health Organization, ``Addictive behaviours: Gaming disorder,'' 2020. [Online]. Available: https://www.who.int/news-room/questions-and-answers/item/addictive-behaviours-gaming-disorder
-\bibitem{hossain} M. I. Hossain, L. A. Amin, M. U. Emon, P. V. Chauhan, A. Rudrabatla, and F. Quader, ``A multidimensional dataset of student gaming behavior and academic correlates in Bangladesh,'' \textit{Scientific Data}, 2025.
-\bibitem{gameaddicted} E. K. Ozyirmidokuz, B. A. Celik, and E. A. Stoica, ``\#GAMEADDICTED: A machine learning framework for digital game addiction detection, and early intervention,'' \textit{IEEE Access}, 2025.
-\bibitem{skalka} J. Skalka, M. Drl\'ik, D. Halvon\'ik, P. Kuna, and M. Valko, ``Anchored log-based user personas: A typology-guided framework for clustering gameplay behavior,'' \textit{IEEE Access}, 2026.
-\bibitem{umap} L. McInnes, J. Healy, and J. Melville, ``UMAP: Uniform Manifold Approximation and Projection for dimension reduction,'' 2018.
-\bibitem{kmeans} J. MacQueen, ``Some methods for classification and analysis of multivariate observations,'' in \textit{Proc. Fifth Berkeley Symposium on Mathematical Statistics and Probability}, 1967, pp. 281--297.
+
+\bibitem{openplay}
+Ballou, N., F\"oldes, T. A., Vuorre, M., Hakman, T., Magnusson, K., \& Przybylski, A. K. (2025). \textit{Open Play: A longitudinal dataset of multi-platform video game digital trace data and psychological measures}. PsyArXiv. \url{https://osf.io/preprints/psyarxiv/nz96c}
+
+\bibitem{who}
+World Health Organization. (2020). \textit{Addictive behaviours: Gaming disorder}. \url{https://www.who.int/news-room/questions-and-answers/item/addictive-behaviours-gaming-disorder}
+
+\bibitem{keim}
+Keim, D. A., Mansmann, F., Schneidewind, J., Thomas, J., \& Ziegler, H. (2008). Visual analytics: Scope and challenges. En S. J. Simoff, M. H. B\"ohlen \& A. Mazeika (Eds.), \textit{Visual data mining} (pp. 76--90). Springer.
+
+\bibitem{heer}
+Heer, J., \& Shneiderman, B. (2012). Interactive dynamics for visual analysis. \textit{Communications of the ACM, 55}(4), 45--54.
+
+\bibitem{jolliffe}
+Jolliffe, I. T. (2002). \textit{Principal component analysis} (2nd ed.). Springer.
+
+\bibitem{umap}
+McInnes, L., Healy, J., \& Melville, J. (2018). \textit{UMAP: Uniform Manifold Approximation and Projection for dimension reduction}. arXiv. \url{https://arxiv.org/abs/1802.03426}
+
+\bibitem{tsne}
+van der Maaten, L., \& Hinton, G. (2008). Visualizing data using t-SNE. \textit{Journal of Machine Learning Research, 9}, 2579--2605.
+
+\bibitem{kmeans}
+MacQueen, J. (1967). Some methods for classification and analysis of multivariate observations. En \textit{Proceedings of the Fifth Berkeley Symposium on Mathematical Statistics and Probability} (Vol. 1, pp. 281--297).
+
 \end{thebibliography}
 
 \end{document}

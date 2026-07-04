@@ -1,6 +1,23 @@
 # OpenPlay Profiler
 
-Herramienta interactiva para explorar, perfilar y reducir dimensionalidad sobre datos de OpenPlay.
+Herramienta interactiva de Mineria de Datos para explorar el dataset OpenPlay, construir un vector de caracteristicas, proyectar participantes en 2D y analizar perfiles exploratorios mediante clustering.
+
+El proyecto esta orientado a una entrega academica: prioriza trazabilidad del pipeline, interpretacion responsable y precision en el tratamiento de variables numericas, valores faltantes, correlaciones y resultados de reduccion dimensional.
+
+## Objetivo analitico
+
+Identificar perfiles exploratorios de jugadores combinando variables de comportamiento de juego, bienestar, telemetria, cognicion y uso del tiempo. Los clusters se interpretan como patrones descriptivos, no como diagnosticos clinicos ni conclusiones causales.
+
+## Pipeline de Mineria de Datos
+
+1. Carga del CSV consolidado o archivos fuente.
+2. Profiling de columnas: tipos, faltantes, distribuciones y frecuencias.
+3. Seleccion del vector de caracteristicas.
+4. Evaluacion del vector: cantidad de variables numericas, cobertura, casos completos y redundancia por correlacion.
+5. Estandarizacion e imputacion controlada.
+6. Reduccion dimensional con PCA, UMAP o t-SNE.
+7. Clustering sobre la proyeccion 2D con K-means, jerarquico single-link o DBSCAN.
+8. Interpretacion de grupos usando variables originales.
 
 ## Requisitos
 
@@ -72,13 +89,27 @@ data/telemetry_aggregated.json
 
 - Carga de CSV, CSV.GZ o ZIP desde la interfaz.
 - Carga rapida del CSV consolidado precompilado.
+- Resumen BI con cobertura por fuente y diagnostico inicial del dataset.
 - Profiling univariado con estadisticas, histogramas, boxplots y frecuencias.
 - Analisis bivariado con scatter plot, correlacion y color por variable.
 - Deteccion de grupos de encuestas e indices.
 - Seleccion de variables para construir vectores de caracteristicas.
+- Evaluacion del vector con cobertura, casos completos y correlaciones altas.
 - Filtros numericos y categoricos.
 - PCA, UMAP y t-SNE con descarga de coordenadas.
+- Clustering 2D e interpretacion de perfiles mediante variables originales.
+- Metricas de clustering: silhouette aproximado, cohesion, separacion y balance de tamanos.
 - Seleccion de participantes y comparacion visual.
+
+## Criterios de precision implementados
+
+- Conversion numerica estricta para evitar que cadenas parcialmente numericas entren al analisis.
+- Estandarizacion antes de PCA, UMAP y t-SNE para comparar variables con escalas distintas.
+- PCA deterministico para que la proyeccion sea reproducible.
+- t-SNE con calculo corregido de perplejidad y semilla fija para resultados repetibles.
+- Invalidacion automatica de proyecciones cuando cambia el dataset, el vector o los filtros.
+- Lectura de clustering con metricas cuantitativas, no solo inspeccion visual.
+- Advertencia metodologica: las variables categoricas sirven para filtrar e interpretar, pero no entran directamente a PCA/UMAP/t-SNE.
 
 ## Estructura
 
@@ -97,3 +128,4 @@ data/                        Datos fuente privados e ignorados por Git
 - `data/` esta ignorado por Git porque contiene fuentes grandes o sensibles.
 - `public/data/OpenPlay/` no debe usarse para datos crudos en despliegue.
 - t-SNE sobre muchos participantes puede tardar varios minutos en navegador.
+- La guia metodologica de la app esta en `public/docs/metodologia-mineria-datos.md`.

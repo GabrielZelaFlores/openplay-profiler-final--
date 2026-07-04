@@ -113,13 +113,23 @@ const initialState = {
   loadingMessage: "",
 };
 
+function toFiniteNumber(value: DataValue): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : NaN;
+  if (value === null || value === undefined || value === "") return NaN;
+  const n = Number(String(value).trim());
+  return Number.isFinite(n) ? n : NaN;
+}
+
 export const useStore = create<StoreState>((set, get) => ({
   ...initialState,
 
   setDataset: (data) => set((s) => ({
     ...s,
     ...data,
+    selectedVariables: [],
+    activeFilters: {},
     selectedRecordIds: [],
+    dimResults: [],
     selectedParticipant: null,
   })),
 
@@ -128,16 +138,17 @@ export const useStore = create<StoreState>((set, get) => ({
       selectedVariables: s.selectedVariables.includes(col)
         ? s.selectedVariables.filter((v) => v !== col)
         : [...s.selectedVariables, col],
+      dimResults: [],
     })),
 
-  clearVariables: () => set({ selectedVariables: [] }),
+  clearVariables: () => set({ selectedVariables: [], dimResults: [] }),
 
   selectGroup: (group) =>
     set((s) => {
       const toAdd = [...group.items];
       if (group.totalCol) toAdd.push(group.totalCol);
       const unique = toAdd.filter((v) => !s.selectedVariables.includes(v));
-      return { selectedVariables: [...s.selectedVariables, ...unique] };
+      return { selectedVariables: [...s.selectedVariables, ...unique], dimResults: [] };
     }),
 
   setFilter: (col, filter) =>
@@ -153,6 +164,7 @@ export const useStore = create<StoreState>((set, get) => ({
       const selected = new Set(s.selectedRecordIds);
       return {
         activeFilters: {},
+        dimResults: [],
         filteredRows: selected.size
           ? s.rows.filter((row) => selected.has(String(row["record_id"])))
           : s.rows,
@@ -173,8 +185,8 @@ export const useStore = create<StoreState>((set, get) => ({
               if (f.includeMissing === false) return false;
               continue;
             }
-            const n = typeof v === "number" ? v : parseFloat(String(v));
-            if (isNaN(n)) { if (!f.includeMissing) return false; continue; }
+            const n = toFiniteNumber(v);
+            if (!Number.isFinite(n)) { if (!f.includeMissing) return false; continue; }
             if (f.min !== undefined && n < f.min) return false;
             if (f.max !== undefined && n > f.max) return false;
           }
@@ -184,7 +196,7 @@ export const useStore = create<StoreState>((set, get) => ({
         }
         return true;
       });
-      return { filteredRows: filtered };
+      return { filteredRows: filtered, dimResults: [] };
     }),
 
   setSelectedRecordIds: (ids) =>
@@ -202,8 +214,8 @@ export const useStore = create<StoreState>((set, get) => ({
               if (f.includeMissing === false) return false;
               continue;
             }
-            const n = typeof v === "number" ? v : parseFloat(String(v));
-            if (isNaN(n)) { if (!f.includeMissing) return false; continue; }
+            const n = toFiniteNumber(v);
+            if (!Number.isFinite(n)) { if (!f.includeMissing) return false; continue; }
             if (f.min !== undefined && n < f.min) return false;
             if (f.max !== undefined && n > f.max) return false;
           }
@@ -213,13 +225,13 @@ export const useStore = create<StoreState>((set, get) => ({
         }
         return true;
       });
-      return { selectedRecordIds, filteredRows };
+      return { selectedRecordIds, filteredRows, dimResults: [] };
     }),
 
   clearSelectedRecordIds: () =>
     set((s) => {
       const filters = s.activeFilters;
-      if (Object.keys(filters).length === 0) return { selectedRecordIds: [], filteredRows: s.rows };
+      if (Object.keys(filters).length === 0) return { selectedRecordIds: [], filteredRows: s.rows, dimResults: [] };
       const filteredRows = s.rows.filter((row) => {
         for (const [col, f] of Object.entries(filters)) {
           const v = row[col];
@@ -229,8 +241,8 @@ export const useStore = create<StoreState>((set, get) => ({
               if (f.includeMissing === false) return false;
               continue;
             }
-            const n = typeof v === "number" ? v : parseFloat(String(v));
-            if (isNaN(n)) { if (!f.includeMissing) return false; continue; }
+            const n = toFiniteNumber(v);
+            if (!Number.isFinite(n)) { if (!f.includeMissing) return false; continue; }
             if (f.min !== undefined && n < f.min) return false;
             if (f.max !== undefined && n > f.max) return false;
           }
@@ -240,7 +252,7 @@ export const useStore = create<StoreState>((set, get) => ({
         }
         return true;
       });
-      return { selectedRecordIds: [], filteredRows };
+      return { selectedRecordIds: [], filteredRows, dimResults: [] };
     }),
 
   addDimResult: (result) =>

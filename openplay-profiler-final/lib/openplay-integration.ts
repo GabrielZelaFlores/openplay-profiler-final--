@@ -69,8 +69,8 @@ function numOrNull(v: string | undefined): number | null {
     "always": 4,
   };
   if (normalized in ordinalMap) return ordinalMap[normalized];
-  const n = parseFloat(v);
-  return isNaN(n) ? null : n;
+  const n = Number(v.trim());
+  return Number.isFinite(n) ? n : null;
 }
 
 function avg(vals: number[]): number | null {
@@ -351,21 +351,27 @@ export async function consolidateOpenPlayData(
   const steam = byName.get("telemetry_steam_raw.csv.gz");
   if (steam) {
     report.filesUsed.push("telemetry_steam_raw.csv.gz");
-    report.aggregations["telemetry_steam"] = "Max playtime, juegos únicos";
+    report.aggregations["telemetry_steam"] = "Min/max playtime reciente, max playtime historico, juegos unicos";
     onProgress?.("Procesando telemetría Steam…");
-    const byPid = new Map<string, { maxPt2w: number; maxPtF: number; games: Set<string>; count: number }>();
+    const byPid = new Map<string, { minPt2w: number | null; maxPt2w: number | null; maxPtF: number | null; games: Set<string>; count: number }>();
     for (const row of steam.rows) {
       const pid = row["pid"];
       if (!pid || !participantMap.has(pid)) continue;
-      if (!byPid.has(pid)) byPid.set(pid, { maxPt2w: 0, maxPtF: 0, games: new Set(), count: 0 });
+      if (!byPid.has(pid)) byPid.set(pid, { minPt2w: null, maxPt2w: null, maxPtF: null, games: new Set(), count: 0 });
       const acc = byPid.get(pid)!;
       acc.count++;
-      const pt2w = numOrNull(row["playtime_2weeks"]); if (pt2w !== null) acc.maxPt2w = Math.max(acc.maxPt2w, pt2w);
-      const ptF = numOrNull(row["playtime_forever"]); if (ptF !== null) acc.maxPtF = Math.max(acc.maxPtF, ptF);
+      const pt2w = numOrNull(row["playtime_2weeks"]);
+      if (pt2w !== null) {
+        acc.minPt2w = acc.minPt2w === null ? pt2w : Math.min(acc.minPt2w, pt2w);
+        acc.maxPt2w = acc.maxPt2w === null ? pt2w : Math.max(acc.maxPt2w, pt2w);
+      }
+      const ptF = numOrNull(row["playtime_forever"]);
+      if (ptF !== null) acc.maxPtF = acc.maxPtF === null ? ptF : Math.max(acc.maxPtF, ptF);
       acc.games.add(row["title_id"] ?? "");
     }
     for (const [pid, acc] of byPid) {
       const p = participantMap.get(pid)!;
+      p["steam_playtime_2weeks_min"] = acc.minPt2w;
       p["steam_playtime_2weeks_max"] = acc.maxPt2w;
       p["steam_playtime_forever_max"] = acc.maxPtF;
       p["steam_unique_games"] = acc.games.size;
@@ -495,10 +501,7 @@ export async function consolidateOpenPlayData(
     const xboxSessions = Number(p["xbox_total_sessions"] ?? 0) || 0;
     const steamRecords = Number(p["steam_total_records"] ?? 0) || 0;
     p["telem_total_sessions"] = androidDays + iosDays + nintendoSessions + xboxSessions + steamRecords;
-
-    if (p["steam_playtime_2weeks_max"] !== null && p["steam_playtime_2weeks_max"] !== undefined) {
-      p["steam_playtime_2weeks_min"] = p["steam_playtime_2weeks_max"];
-    }
+    p["telem_activity_count"] = p["telem_total_sessions"];
   }
 
   // ── Armar resultado final ─────────────────────────────────────────────────
@@ -515,7 +518,7 @@ export async function consolidateOpenPlayData(
     "intake_life_sat","intake_affective_valence",
     "intake_wemwbs_1","intake_wemwbs_2","intake_wemwbs_3","intake_wemwbs_4","intake_wemwbs_5","intake_wemwbs_6","intake_wemwbs_7",
     "gdt_total","promis_total","wemwbs_total","bangs_total",
-    "telem_nocturnal_sessions","telem_total_sessions","steam_playtime_2weeks_min",
+    "telem_nocturnal_sessions","telem_activity_count","telem_total_sessions","steam_playtime_2weeks_min",
     "bw_gdt_1","bw_gdt_2","bw_gdt_3","bw_gdt_4",
     "bw_promis_1","bw_promis_2","bw_promis_3","bw_promis_4","bw_promis_5","bw_promis_6","bw_promis_7","bw_promis_8",
     "bw_wemwbs_1","bw_wemwbs_2","bw_wemwbs_3","bw_wemwbs_4","bw_wemwbs_5","bw_wemwbs_6","bw_wemwbs_7",

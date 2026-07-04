@@ -2,12 +2,12 @@
 import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
-import { fmt, fmtInt } from "@/lib/data-utils";
+import { fmt, fmtInt, parseNumericValue } from "@/lib/data-utils";
 import { BarChart2, Search, ChevronDown, ChevronRight } from "lucide-react";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
-const ORANGE = "#f97316";
+const ORANGE = "#5f725c";
 const GRAY = "#9ca3af";
 
 function StatRow({ label, value }: { label: string; value: string }) {
@@ -39,7 +39,7 @@ export default function ProfilingPanel() {
       .filter((v) => v !== null && v !== undefined && v !== "");
 
     if (stats.type === "numeric") {
-      const nums = vals.map(Number).filter((n) => isFinite(n));
+      const nums = vals.map(parseNumericValue).filter(Number.isFinite);
       if (chartType === "histogram") {
         return [{ type: "histogram" as const, x: nums, marker: { color: ORANGE }, nbinsx: 30, name: selected }];
       } else if (chartType === "box") {
@@ -59,6 +59,8 @@ export default function ProfilingPanel() {
   }, [selected, stats, filteredRows, chartType]);
 
   const missingPct = stats ? ((stats.missing / (stats.count + stats.missing)) * 100).toFixed(1) : "0";
+  const missingPctNumber = Number(missingPct);
+  const coveragePct = 100 - missingPctNumber;
 
   return (
     <div className="bg-white border border-gray-200 rounded">
@@ -101,7 +103,7 @@ export default function ProfilingPanel() {
                       {s?.type === "numeric" ? "N" : "C"}
                     </span>
                   </div>
-                  {parseFloat(missingPct2) > 5 && (
+                  {Number(missingPct2) > 5 && (
                     <div className="text-[10px] text-gray-400">{missingPct2}% faltantes</div>
                   )}
                 </button>
@@ -202,12 +204,12 @@ export default function ProfilingPanel() {
               <div>
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
                   <span>Cobertura</span>
-                  <span>{(100 - parseFloat(missingPct)).toFixed(1)}%</span>
+                  <span>{coveragePct.toFixed(1)}%</span>
                 </div>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-orange-500 rounded-full"
-                    style={{ width: `${100 - parseFloat(missingPct)}%` }}
+                    style={{ width: `${coveragePct}%` }}
                   />
                 </div>
               </div>

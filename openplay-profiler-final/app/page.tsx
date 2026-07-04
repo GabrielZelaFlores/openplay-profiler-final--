@@ -5,6 +5,7 @@ import DataUpload from "@/components/DataUpload";
 import ZipContentsPreview from "@/components/ZipContentsPreview";
 import DatasetPreview from "@/components/DatasetPreview";
 import IntroductionAttachment from "@/components/IntroductionAttachment";
+import DataMiningOverview from "@/components/DataMiningOverview";
 import ProfilingPanel from "@/components/ProfilingPanel";
 import CorrelationHeatmap from "@/components/CorrelationHeatmap";
 import InteractivePlot from "@/components/InteractivePlot";
@@ -14,9 +15,10 @@ import FeatureVectorEvaluation from "@/components/FeatureVectorEvaluation";
 import FiltersPanel from "@/components/FiltersPanel";
 import DimensionalityReduction from "@/components/DimensionalityReduction";
 import VisualRecommendations from "@/components/VisualRecommendations";
-import { Database, BarChart2, Filter, Activity, BookOpen, GitBranch, TrendingUp } from "lucide-react";
+import CaseStudiesValidation from "@/components/CaseStudiesValidation";
+import { Database, BarChart2, Filter, Activity, BookOpen, GitBranch, TrendingUp, ShieldCheck } from "lucide-react";
 
-type Tab = "datos" | "profiling" | "bivariado" | "encuestas" | "vector" | "filtros" | "reduccion";
+type Tab = "datos" | "profiling" | "bivariado" | "encuestas" | "vector" | "filtros" | "reduccion" | "validacion";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "datos",    label: "Datos",           icon: <Database size={14} /> },
@@ -26,6 +28,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "vector",   label: "Vector",            icon: <GitBranch size={14} /> },
   { id: "filtros",  label: "Filtros",           icon: <Filter size={14} /> },
   { id: "reduccion",label: "PCA / t-SNE / UMAP",icon: <Activity size={14} /> },
+  { id: "validacion",label: "Validacion",       icon: <ShieldCheck size={14} /> },
 ];
 
 function ParticipantModal() {
@@ -40,7 +43,7 @@ function ParticipantModal() {
     { label: "PROMIS", keys: ["bw_promis_1","bw_promis_2","bw_promis_3","bw_promis_4","bw_promis_5","bw_promis_6","bw_promis_7","bw_promis_8","promis_total"] },
     { label: "WEMWBS", keys: ["bw_wemwbs_1","bw_wemwbs_2","bw_wemwbs_3","bw_wemwbs_4","bw_wemwbs_5","bw_wemwbs_6","bw_wemwbs_7","wemwbs_total"] },
     { label: "BANGS", keys: Array.from({length:18}, (_,i) => `bw_bangs_${i+1}`).concat(["bangs_total"]) },
-    { label: "Telemetria derivada", keys: ["telem_nocturnal_sessions","telem_total_sessions"] },
+    { label: "Telemetria derivada", keys: ["telem_nocturnal_sessions","telem_activity_count","telem_total_sessions"] },
     { label: "Steam", keys: ["steam_total_records","steam_unique_games","steam_playtime_2weeks_min","steam_playtime_2weeks_max","steam_playtime_forever_max","steam_owned_games_count","steam_linked"] },
     { label: "Xbox", keys: ["xbox_total_sessions","xbox_total_duration_min","xbox_mean_session_min","xbox_nocturnal_sessions","xbox_unique_games"] },
     { label: "Nintendo", keys: ["nintendo_total_sessions","nintendo_total_duration_min","nintendo_mean_session_min","nintendo_nocturnal_sessions","nintendo_unique_games"] },
@@ -137,6 +140,7 @@ export default function HomePage() {
             {hasData && (
               <>
                 <ZipContentsPreview />
+                <DataMiningOverview />
                 <DatasetPreview />
               </>
             )}
@@ -181,6 +185,11 @@ export default function HomePage() {
         {/* TAB: REDUCCIÓN */}
         {hasData && activeTab === "reduccion" && (
           <DimensionalityReduction />
+        )}
+
+        {/* TAB: VALIDACION */}
+        {hasData && activeTab === "validacion" && (
+          <CaseStudiesValidation />
         )}
       </main>
 

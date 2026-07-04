@@ -2,7 +2,7 @@
 import { useStore } from "@/lib/store";
 import { useState, useMemo } from "react";
 import { Filter, X, Search } from "lucide-react";
-import { fmt } from "@/lib/data-utils";
+import { fmt, parseNumericValue } from "@/lib/data-utils";
 
 export default function FiltersPanel() {
   const { columns, columnStats, activeFilters, selectedRecordIds, setFilter, clearFilters, clearSelectedRecordIds, applyFilters, filteredRows, rows } = useStore();
@@ -119,7 +119,7 @@ function NumericFilter({
   const curMin = filter?.min ?? mn;
   const curMax = filter?.max ?? mx;
   const parseNumberOr = (raw: string, fallback: number) => {
-    const value = parseFloat(raw);
+    const value = parseNumericValue(raw);
     return Number.isFinite(value) ? value : fallback;
   };
 

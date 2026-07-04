@@ -3,6 +3,7 @@ import { useStore } from "@/lib/store";
 import { X, Trash2, Check, ChevronDown, ChevronRight } from "lucide-react";
 import { fmt } from "@/lib/data-utils";
 import { useState } from "react";
+import { RECOMMENDED_PROJECT_VECTOR } from "@/lib/openplay-vector";
 
 const GROUPS = [
   { label: "Demográficas (intake)", prefix: ["age","gender","country","cohort","edu_level","employment","marital_status","ethnicity","height","weight","dependents","num_platforms"] },
@@ -25,37 +26,6 @@ const GROUPS = [
   { label: "Uso del tiempo", prefix: ["timeuse_"] },
   { label: "Encuesta diaria", prefix: ["daily_"] },
   { label: "Indicadores", prefix: ["has_","num_telemetry"] },
-];
-
-const RECOMMENDED_PROJECT_VECTOR = [
-  // Base del participante
-  "age",
-  "num_platforms",
-  "num_telemetry_platforms",
-  "self_reported_weekly_play",
-
-  // Bienestar y riesgo de juego problematico
-  "gdt_total",
-  "promis_total",
-  "wemwbs_total",
-  "bangs_total",
-
-  // Telemetria consolidada y actividad de juego
-  "telem_nocturnal_sessions",
-  "telem_total_sessions",
-  "steam_playtime_2weeks_min",
-  "steam_playtime_2weeks_max",
-  "steam_playtime_forever_max",
-  "steam_unique_games",
-  "steam_owned_games_count",
-
-  // Seguimiento diario, cognicion y uso del tiempo
-  "daily_played_days",
-  "daily_stress_days",
-  "cog_mean_accuracy",
-  "cog_mean_rt",
-  "timeuse_gaming_entries",
-  "timeuse_num_days",
 ];
 
 export default function FeatureVectorBuilder() {

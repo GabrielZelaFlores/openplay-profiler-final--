@@ -7,20 +7,20 @@ export default function IntroductionAttachment() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <FileText size={15} className="text-orange-500" /> Informe del proyecto
+            <FileText size={15} className="text-orange-500" /> Guia metodologica del proyecto
           </h2>
           <p className="text-xs text-gray-500 mt-1 max-w-2xl">
-            PDF final del informe: introduccion, vector de caracteristicas, metodologia visual,
-            resultados de clustering e interpretacion de perfiles exploratorios.
+            Resumen listo para defender en Mineria de Datos: objetivo, preprocesamiento,
+            vector de caracteristicas, reduccion dimensional, clustering e interpretacion.
           </p>
         </div>
         <a
-          href="/docs/informe-openplay-profiler.pdf"
+          href="/docs/metodologia-mineria-datos.md"
           target="_blank"
           rel="noreferrer"
           className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600"
         >
-          <Download size={13} /> Abrir informe
+          <Download size={13} /> Abrir guia
         </a>
       </div>
     </div>

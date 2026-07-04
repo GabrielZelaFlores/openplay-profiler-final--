@@ -3,7 +3,7 @@ import { useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
 import { runPCA, runUMAP, runTSNE } from "@/lib/dimensionality-utils";
-import { rowsToCSV, downloadCSV } from "@/lib/data-utils";
+import { rowsToCSV, downloadCSV, parseNumericValue } from "@/lib/data-utils";
 import { runDBSCAN, runHierarchicalSingleLink, runKMeans, type ClusterResult } from "@/lib/clustering-utils";
 import { Activity, Download, AlertTriangle, MousePointer2, X } from "lucide-react";
 
@@ -15,14 +15,14 @@ type ClusteringMethod = "kmeans" | "hierarchical-single" | "dbscan";
 
 const COLOR_VARS = [
   "gdt_total","promis_total","wemwbs_total","bangs_total","age","num_platforms",
-  "telem_nocturnal_sessions","telem_total_sessions","steam_playtime_2weeks_min",
+  "telem_nocturnal_sessions","steam_playtime_2weeks_max",
   "xbox_total_sessions","steam_unique_games","cog_mean_rt","daily_played_days",
   "nintendo_total_sessions","android_total_minutes","ios_total_minutes",
 ];
 
 const CLUSTER_COLORS = [
-  "#2563eb", "#dc2626", "#16a34a", "#9333ea", "#f97316", "#0891b2",
-  "#be123c", "#4f46e5", "#65a30d", "#c026d3", "#0f766e", "#a16207",
+  "#4f647f", "#9b4d5f", "#5f725c", "#7b638d", "#9b6f45", "#4f7882",
+  "#7d5365", "#59618a", "#71805a", "#8a5f84", "#52766e", "#8a7048",
 ];
 
 export default function DimensionalityReduction() {
@@ -77,8 +77,8 @@ export default function DimensionalityReduction() {
     const stats: Record<string, { mean: number; std: number }> = {};
     for (const col of numericSelected) {
       const vals = filteredRows
-        .map((r) => parseFloat(String(r[col] ?? "")))
-        .filter((n) => isFinite(n));
+        .map((r) => parseNumericValue(r[col]))
+        .filter(Number.isFinite);
       const mean = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
       const variance = vals.length ? vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length : 0;
       stats[col] = { mean, std: Math.sqrt(variance) || 1 };
@@ -96,10 +96,10 @@ export default function DimensionalityReduction() {
     if (!a || !b || !ca || !cb) return null;
     const distance = Math.sqrt((ca.x - cb.x) ** 2 + (ca.y - cb.y) ** 2);
     const variables = numericSelected.map((col) => {
-      const aVal = parseFloat(String(a[col] ?? ""));
-      const bVal = parseFloat(String(b[col] ?? ""));
-      const hasA = isFinite(aVal);
-      const hasB = isFinite(bVal);
+      const aVal = parseNumericValue(a[col]);
+      const bVal = parseNumericValue(b[col]);
+      const hasA = Number.isFinite(aVal);
+      const hasB = Number.isFinite(bVal);
       const diff = hasA && hasB ? bVal - aVal : NaN;
       const pct = hasA && hasB && aVal !== 0 ? (diff / Math.abs(aVal)) * 100 : NaN;
       const { mean, std } = zStats[col] ?? { mean: 0, std: 1 };
@@ -114,21 +114,35 @@ export default function DimensionalityReduction() {
     if (selectedRows.length < 3) return null;
     return numericSelected.map((col) => {
       const groupVals = selectedRows
-        .map((r) => parseFloat(String(r[col] ?? "")))
-        .filter((n) => isFinite(n));
+        .map((r) => parseNumericValue(r[col]))
+        .filter(Number.isFinite);
       const allVals = filteredRows
-        .map((r) => parseFloat(String(r[col] ?? "")))
-        .filter((n) => isFinite(n));
+        .map((r) => parseNumericValue(r[col]))
+        .filter(Number.isFinite);
       const groupMean = groupVals.length ? groupVals.reduce((a, b) => a + b, 0) / groupVals.length : NaN;
       const generalMean = allVals.length ? allVals.reduce((a, b) => a + b, 0) / allVals.length : NaN;
       return {
         col,
         groupMean,
         generalMean,
-        diff: isFinite(groupMean) && isFinite(generalMean) ? groupMean - generalMean : NaN,
+        diff: Number.isFinite(groupMean) && Number.isFinite(generalMean) ? groupMean - generalMean : NaN,
       };
     });
   }, [selectedRows, numericSelected, filteredRows]);
+
+  const selectedGroupProfile = useMemo(() => {
+    if (!groupSummary) return [];
+    return groupSummary
+      .map((item) => {
+        const stats = zStats[item.col];
+        const zDiff = stats && Number.isFinite(item.diff) ? item.diff / stats.std : NaN;
+        return { ...item, zDiff };
+      })
+      .filter((item) => Number.isFinite(item.zDiff))
+      .sort((a, b) => Math.abs(b.zDiff) - Math.abs(a.zDiff))
+      .slice(0, 10)
+      .reverse();
+  }, [groupSummary, zStats]);
 
   const run = useCallback(async () => {
     if (numericSelected.length < 2) { setError("Selecciona al menos 2 variables numéricas."); return; }
@@ -188,7 +202,7 @@ export default function DimensionalityReduction() {
     setManualId("");
   };
 
-  const fmtNum = (n: number, dec = 3) => isFinite(n) ? n.toFixed(dec) : "-";
+  const fmtNum = (n: number, dec = 3) => Number.isFinite(n) ? n.toFixed(dec) : "-";
 
   const runClustering = () => {
     if (!currentResult) return;
@@ -245,6 +259,7 @@ export default function DimensionalityReduction() {
     const largest = realClusters[0];
     const largestPct = largest ? largest.count / total : 0;
     const noisePct = clusterResult.noiseCount / total;
+    const silhouette = clusterResult.metrics.silhouetteApprox;
 
     if (realClusters.length <= 1 && clusterResult.method === "dbscan") {
       return {
@@ -270,11 +285,36 @@ export default function DimensionalityReduction() {
       };
     }
 
+    if (silhouette !== null && silhouette < 0.15) {
+      return {
+        tone: "text-yellow-700 bg-yellow-50 border-yellow-100",
+        title: "Separacion limitada",
+        message: `El silhouette aproximado es ${silhouette.toFixed(2)}, lo que sugiere solapamiento entre grupos. Usalo como segmentacion exploratoria y valida con variables originales.`,
+      };
+    }
+
     return {
       tone: "text-emerald-700 bg-emerald-50 border-emerald-100",
       title: "Agrupamiento visualmente util",
       message: "Los clusters tienen una distribucion razonable para inspeccion visual. Revisa tambien si sus variables originales tienen diferencias interpretables.",
     };
+  })();
+
+  const clusterMetricSummary = (() => {
+    if (!clusterResult) return null;
+    const m = clusterResult.metrics;
+    const silhouetteText = m.silhouetteApprox === null ? "N/A" : m.silhouetteApprox.toFixed(3);
+    const balanceText = m.sizeBalanceRatio === null ? "N/A" : m.sizeBalanceRatio.toFixed(2);
+    const separationText = m.minCentroidDistance === null ? "N/A" : fmtNum(m.minCentroidDistance);
+
+    let interpretation = "Metricas descriptivas del agrupamiento en el espacio 2D. Usalas junto con interpretacion de variables originales.";
+    if (m.silhouetteApprox !== null && m.silhouetteApprox >= 0.4) {
+      interpretation = "Buena separacion relativa en la proyeccion 2D; aun asi, la conclusion debe sustentarse con variables originales.";
+    } else if (m.silhouetteApprox !== null && m.silhouetteApprox < 0.15) {
+      interpretation = "Separacion debil: los grupos pueden solaparse. Conviene probar otro vector, otro k o filtrar por cobertura.";
+    }
+
+    return { m, silhouetteText, balanceText, separationText, interpretation };
   })();
 
   const clusterProfiles = useMemo(() => {
@@ -283,8 +323,8 @@ export default function DimensionalityReduction() {
     const rowsInProjection = rows.filter((row) => resultIds.has(String(row["record_id"])));
     const globalStats = numericSelected.reduce<Record<string, { mean: number; std: number }>>((acc, col) => {
       const values = rowsInProjection
-        .map((row) => parseFloat(String(row[col] ?? "")))
-        .filter((value) => isFinite(value));
+        .map((row) => parseNumericValue(row[col]))
+        .filter(Number.isFinite);
       const mean = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
       const variance = values.length ? values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length : 0;
       acc[col] = { mean, std: Math.sqrt(variance) || 1 };
@@ -300,14 +340,14 @@ export default function DimensionalityReduction() {
         const variables = numericSelected
           .map((col) => {
             const values = members
-              .map((row) => parseFloat(String(row[col] ?? "")))
-              .filter((value) => isFinite(value));
+              .map((row) => parseNumericValue(row[col]))
+              .filter(Number.isFinite);
             const mean = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : NaN;
             const global = globalStats[col];
-            const zDiff = isFinite(mean) && global ? (mean - global.mean) / global.std : NaN;
+            const zDiff = Number.isFinite(mean) && global ? (mean - global.mean) / global.std : NaN;
             return { col, mean, globalMean: global?.mean ?? NaN, zDiff };
           })
-          .filter((item) => isFinite(item.zDiff))
+          .filter((item) => Number.isFinite(item.zDiff))
           .sort((a, b) => Math.abs(b.zDiff) - Math.abs(a.zDiff))
           .slice(0, 5);
 
@@ -424,8 +464,8 @@ export default function DimensionalityReduction() {
 
     for (const c of coords) {
       const row = rowById.get(String(c.record_id));
-      const colorV = row ? parseFloat(String(row[colorVar] ?? "")) : NaN;
-      colorVals.push(isFinite(colorV) ? colorV : 0);
+      const colorV = row ? parseNumericValue(row[colorVar]) : NaN;
+      colorVals.push(Number.isFinite(colorV) ? colorV : 0);
       xVals.push(c.x);
       yVals.push(c.y);
       customIds.push(String(c.record_id));
@@ -844,13 +884,41 @@ export default function DimensionalityReduction() {
             {clusterResult && (
               <div className="space-y-2">
                 <div className="text-xs bg-blue-50 border border-blue-100 rounded px-2 py-1 text-blue-700">
-                  Metodo: <b>{clusterResult.method === "kmeans" ? "K-means" : clusterResult.method === "hierarchical-single" ? "Jerarquico aglomerativo single-link" : "DBSCAN"}</b>
+                  Metodo: <b>{clusterResult.method === "kmeans" ? "K-means" : clusterResult.method === "hierarchical-single" ? "MST / single-link aproximado" : "DBSCAN"}</b>
                   {" "}· Grupos detectados: <b>{clusterResult.clusters.filter((c) => c.label !== -1).length}</b>
                   {clusterResult.noiseCount > 0 && <> · Ruido: <b>{clusterResult.noiseCount}</b></>}
                 </div>
                 {clusterEvaluation && (
                   <div className={`text-xs border rounded px-2 py-1 ${clusterEvaluation.tone}`}>
                     <b>{clusterEvaluation.title}:</b> {clusterEvaluation.message}
+                  </div>
+                )}
+                {clusterMetricSummary && (
+                  <div className="border border-gray-100 rounded overflow-hidden">
+                    <div className="px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-50">
+                      Metricas de validacion del clustering
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-2 text-xs">
+                      <div className="bg-white border border-gray-100 rounded p-2">
+                        <div className="text-gray-500">Silhouette aprox.</div>
+                        <div className="font-mono font-semibold text-gray-800">{clusterMetricSummary.silhouetteText}</div>
+                      </div>
+                      <div className="bg-white border border-gray-100 rounded p-2">
+                        <div className="text-gray-500">Cohesion media</div>
+                        <div className="font-mono font-semibold text-gray-800">{fmtNum(clusterMetricSummary.m.meanDistanceToCentroid)}</div>
+                      </div>
+                      <div className="bg-white border border-gray-100 rounded p-2">
+                        <div className="text-gray-500">Separacion minima</div>
+                        <div className="font-mono font-semibold text-gray-800">{clusterMetricSummary.separationText}</div>
+                      </div>
+                      <div className="bg-white border border-gray-100 rounded p-2">
+                        <div className="text-gray-500">Balance tamano</div>
+                        <div className="font-mono font-semibold text-gray-800">{clusterMetricSummary.balanceText}</div>
+                      </div>
+                    </div>
+                    <div className="px-2 py-1 text-xs text-gray-500 border-t border-gray-100">
+                      {clusterMetricSummary.interpretation} Silhouette se calcula sobre una muestra deterministica de {clusterMetricSummary.m.silhouetteSampleSize} puntos sin ruido.
+                    </div>
                   </div>
                 )}
                 <div className="overflow-x-auto border border-gray-100 rounded">
@@ -1112,7 +1180,7 @@ export default function DimensionalityReduction() {
                           <td className="px-2 py-1 text-right font-mono">{fmtNum(v.aVal)}</td>
                           <td className="px-2 py-1 text-right font-mono">{fmtNum(v.bVal)}</td>
                           <td className="px-2 py-1 text-right font-mono">{fmtNum(v.diff)}</td>
-                          <td className="px-2 py-1 text-right font-mono">{isFinite(v.pct) ? `${v.pct.toFixed(1)}%` : "-"}</td>
+                          <td className="px-2 py-1 text-right font-mono">{Number.isFinite(v.pct) ? `${v.pct.toFixed(1)}%` : "-"}</td>
                           <td className="px-2 py-1 text-right font-mono">{fmtNum(v.aStd)}</td>
                           <td className="px-2 py-1 text-right font-mono">{fmtNum(v.bStd)}</td>
                           <td className="px-2 py-1 text-right font-mono">{fmtNum(v.stdDiff)}</td>
@@ -1125,30 +1193,68 @@ export default function DimensionalityReduction() {
             )}
 
             {groupSummary && (
-              <div className="overflow-x-auto border border-gray-100 rounded">
-                <div className="px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-50">
-                  Resumen del grupo seleccionado ({selectedRows.length} participantes)
-                </div>
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-50 text-gray-500">
-                    <tr>
-                      <th className="text-left px-2 py-1 font-medium">Variable</th>
-                      <th className="text-right px-2 py-1 font-medium">Media grupo</th>
-                      <th className="text-right px-2 py-1 font-medium">Media general</th>
-                      <th className="text-right px-2 py-1 font-medium">Diferencia</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groupSummary.map((v) => (
-                      <tr key={v.col} className="border-t border-gray-50">
-                        <td className="px-2 py-1 text-gray-700">{v.col}</td>
-                        <td className="px-2 py-1 text-right font-mono">{fmtNum(v.groupMean)}</td>
-                        <td className="px-2 py-1 text-right font-mono">{fmtNum(v.generalMean)}</td>
-                        <td className="px-2 py-1 text-right font-mono">{fmtNum(v.diff)}</td>
+              <div className="space-y-2">
+                {selectedGroupProfile.length > 0 && (
+                  <div className="border border-gray-100 rounded overflow-hidden">
+                    <div className="px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-50">
+                      Variables que diferencian al grupo seleccionado
+                    </div>
+                    <Plot
+                      data={[{
+                        type: "bar",
+                        orientation: "h",
+                        x: selectedGroupProfile.map((item) => item.zDiff),
+                        y: selectedGroupProfile.map((item) => item.col),
+                        marker: {
+                          color: selectedGroupProfile.map((item) => item.zDiff >= 0 ? "#4f647f" : "#9b6f45"),
+                        },
+                        customdata: selectedGroupProfile.map((item) => [
+                          fmtNum(item.groupMean),
+                          fmtNum(item.generalMean),
+                          fmtNum(item.diff),
+                        ]),
+                        hovertemplate: "Dif. std: %{x:.2f}<br>Media grupo: %{customdata[0]}<br>Media general: %{customdata[1]}<br>Diferencia: %{customdata[2]}<extra></extra>",
+                      } as import("plotly.js").Data]}
+                      layout={{
+                        height: Math.max(260, selectedGroupProfile.length * 28 + 90),
+                        margin: { t: 20, r: 20, b: 40, l: 170 },
+                        paper_bgcolor: "white",
+                        plot_bgcolor: "#fafafa",
+                        xaxis: { title: { text: "Diferencia estandarizada vs total", font: { size: 10 } }, zeroline: true },
+                        yaxis: { automargin: true },
+                        font: { size: 10 },
+                        showlegend: false,
+                      }}
+                      config={{ displayModeBar: false, responsive: true }}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                )}
+                <div className="overflow-x-auto border border-gray-100 rounded">
+                  <div className="px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-50">
+                    Resumen del grupo seleccionado ({selectedRows.length} participantes)
+                  </div>
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50 text-gray-500">
+                      <tr>
+                        <th className="text-left px-2 py-1 font-medium">Variable</th>
+                        <th className="text-right px-2 py-1 font-medium">Media grupo</th>
+                        <th className="text-right px-2 py-1 font-medium">Media general</th>
+                        <th className="text-right px-2 py-1 font-medium">Diferencia</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {groupSummary.map((v) => (
+                        <tr key={v.col} className="border-t border-gray-50">
+                          <td className="px-2 py-1 text-gray-700">{v.col}</td>
+                          <td className="px-2 py-1 text-right font-mono">{fmtNum(v.groupMean)}</td>
+                          <td className="px-2 py-1 text-right font-mono">{fmtNum(v.generalMean)}</td>
+                          <td className="px-2 py-1 text-right font-mono">{fmtNum(v.diff)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
@@ -1158,11 +1264,11 @@ export default function DimensionalityReduction() {
                   data={[{
                     type: "parcoords",
                     dimensions: numericSelected.slice(0, 10).map((col) => {
-                      const values = selectedRows.map((r) => parseFloat(String(r[col] ?? "")));
-                      const finite = values.filter((n) => isFinite(n));
+                      const values = selectedRows.map((r) => parseNumericValue(r[col]));
+                      const finite = values.filter(Number.isFinite);
                       return {
                         label: col,
-                        values: values.map((n) => isFinite(n) ? n : null),
+                        values: values.map((n) => Number.isFinite(n) ? n : null),
                         range: finite.length ? [Math.min(...finite), Math.max(...finite)] : [0, 1],
                       };
                     }),

@@ -48,7 +48,7 @@
     "telemetry_ios": "Sum/mean of daily gaming minutes",
     "telemetry_nintendo": "Session count, total duration, mean/max session, unique games, nocturnal sessions",
     "telemetry_xbox": "Session count, total duration, mean/max session, unique games, nocturnal sessions",
-    "telemetry_steam": "Max playtime (2w and forever), unique game count",
+    "telemetry_steam": "Min/max recent playtime, max historical playtime, unique game count",
     "telemetry_steam_owned": "Owned games count, total playtime forever",
     "cognitive_tasks": "Mean RT, mean accuracy, task count",
     "timeuse": "Entry count, day count, gaming entries"
