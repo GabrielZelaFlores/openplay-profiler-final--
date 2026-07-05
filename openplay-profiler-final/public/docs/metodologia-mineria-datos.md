@@ -18,6 +18,20 @@ Desde BI, el dashboard responde preguntas de decision:
 
 El valor del sistema no esta solo en generar graficos, sino en convertir datos heterogeneos en evidencia accionable: cobertura, patrones, atipicos, perfiles y advertencias metodologicas.
 
+## Preguntas guia y tareas de analisis
+
+Las tareas del sistema se derivan de preguntas concretas que pueden responderse dentro de la interfaz. No se proponen tareas que no tengan una vista, variable o grafico asociado en el proyecto.
+
+- **P1. Que fuentes de OpenPlay tienen suficiente cobertura para sostener una interpretacion visual y cuales deben leerse con cautela?**
+  - **T1. Evaluar cobertura y calidad del dataset.** Se responde con las vistas Datos, Profiling, Filtros y Validacion, usando banderas como `has_steam`, `has_xbox`, `has_nintendo`, `has_android`, `has_ios`, `has_cognitive` y `has_timeuse`.
+
+- **P2. Que relaciones entre telemetria, bienestar, riesgo y uso del tiempo explican diferencias entre participantes?**
+  - **T2. Seleccionar el vector de caracteristicas y explorar relaciones entre variables originales.** Se responde con Vector, Profiling, Encuestas y Bivariado, por ejemplo comparando `telem_total_sessions` con `telem_nocturnal_sessions`.
+
+- **P3. Que perfiles exploratorios aparecen al combinar el vector de caracteristicas con reduccion dimensional y clustering, y como se validan con variables originales?**
+  - **T3. Proyectar y agrupar participantes para ubicar perfiles exploratorios.** Se responde con PCA/t-SNE/UMAP y clustering.
+  - **T4. Validar e interpretar perfiles con variables originales, filtros y vistas coordinadas.** Se responde con Validacion, Filtros, Encuestas, perfiles estandarizados y cobertura por fuente.
+
 ## Pipeline de mineria de datos
 
 1. Carga del dataset consolidado `openplay_consolidated.csv`.

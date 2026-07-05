@@ -258,23 +258,34 @@ El preprocesamiento se concentra en preparar datos para an\'alisis visual, no en
 
 Para la reducci\'on dimensional, solo se usan variables num\'ericas. Las variables categ\'oricas se conservan para filtrar, describir e interpretar participantes, pero no entran directamente al c\'alculo de PCA, UMAP o t-SNE. Las variables seleccionadas se estandarizan y se tratan los valores faltantes seg\'un el m\'etodo elegido. Finalmente, las coordenadas 2D y las etiquetas de clustering se conectan con las vistas de selecci\'on, tablas y perfiles. La interpretaci\'on final no se basa solamente en la posici\'on de los puntos, sino en la combinaci\'on entre proyecci\'on, diferencias estandarizadas, filtros y gr\'aficos de validaci\'on.
 
+\subsection{Preguntas gu\'ia del an\'alisis}
+
+Las tareas del sistema se formularon a partir de preguntas concretas que s\'i pueden responderse con las vistas implementadas en OpenPlay Profiler. De esta forma, ninguna tarea queda desconectada de la interfaz ni de los datos reales del proyecto.
+
+\begin{itemize}
+    \item \textbf{P1.} ?Qu\'e fuentes de OpenPlay tienen suficiente cobertura para sostener una interpretaci\'on visual y cu\'ales deben leerse con cautela?
+    \item \textbf{P2.} ?Qu\'e relaciones entre telemetr\'ia, bienestar, riesgo y uso del tiempo explican diferencias entre participantes?
+    \item \textbf{P3.} ?Qu\'e perfiles exploratorios aparecen al combinar el vector de caracter\'isticas con reducci\'on dimensional y clustering, y c\'omo se validan con variables originales?
+\end{itemize}
+
 \subsection{Tareas de an\'alisis}
 
 \begin{table}[H]
 \centering
-\caption{Tareas de an\'alisis del sistema}
-\begin{tabularx}{\textwidth}{p{1.1cm} X p{3.1cm} p{2.3cm}}
+\caption{Preguntas, tareas y vistas que las responden}
+\footnotesize
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{p{0.8cm} p{2.1cm} X p{4.1cm}}
 \toprule
-\textbf{Tarea} & \textbf{Descripci\'on} & \textbf{Variables clave} & \textbf{Casos} \\
+\textbf{Tarea} & \textbf{Pregunta} & \textbf{Objetivo anal\'itico} & \textbf{Vista y evidencia visual} \\
 \midrule
-T1 & Evaluar la cobertura y calidad del dataset para decidir qu\'e fuentes pueden sostener una interpretaci\'on visual. & Banderas de fuente, faltantes, tipos de columna. & Caso 1 \\
-T2 & Seleccionar y evaluar un vector de caracter\'isticas que integre dimensiones complementarias del participante. & Bienestar, riesgo, telemetr\'ia, cognici\'on, uso del tiempo. & Casos 2--4 \\
-T3 & Explorar relaciones entre variables para confirmar si una separaci\'on visual tiene respaldo en atributos originales. & Correlaciones, scatter bivariado, variables seleccionadas. & Casos 2 y 3 \\
-T4 & Comparar subgrupos de participantes en la proyecci\'on para explicar qu\'e variables producen separaciones o concentraciones relevantes. & Coordenadas PCA/UMAP/t-SNE, clusters y valores originales. & Casos 2--4 \\
-T5 & Detectar perfiles exploratorios mediante clustering y caracterizarlos con medias estandarizadas de variables originales. & Etiquetas de cluster, medias por grupo, diferencias estandarizadas. & Casos 2--4 \\
-T6 & Reconocer si un perfil se explica por comportamiento de juego, bienestar o disponibilidad desigual de datos. & Sesiones nocturnas, cobertura por fuente, uso del tiempo, escalas. & Casos 1--4 \\
+T1 & P1 & Evaluar la cobertura y calidad del dataset para decidir qu\'e fuentes pueden sostener una interpretaci\'on visual. & Datos, profiling y filtros. Se observa en la Figura \ref{fig:data_view} y se valida con la Figura \ref{fig:cobertura_fuentes}. \\
+T2 & P2 & Seleccionar el vector de caracter\'isticas y explorar relaciones entre variables originales de bienestar, riesgo, telemetr\'ia y uso del tiempo. & Vector, profiling, encuestas y bivariado. Se observa en las Figuras \ref{fig:vector_view}, \ref{fig:surveys_view} y \ref{fig:bivariate_view}. \\
+T3 & P3 & Proyectar y agrupar participantes para ubicar perfiles exploratorios, separaciones y posibles casos at\'ipicos. & Reducci\'on dimensional y clustering. Se observa en la Figura \ref{fig:reduction_view} y en la Figura \ref{fig:pca_clusters}. \\
+T4 & P1--P3 & Validar e interpretar los perfiles con variables originales, filtros, cobertura y vistas de confirmaci\'on. & Validaci\'on, filtros, perfil de clusters y cobertura por grupo. Se observa en las Figuras \ref{fig:validation_view}, \ref{fig:perfil_clusters}, \ref{fig:bienestar_riesgo} y \ref{fig:cobertura_cluster}. \\
 \bottomrule
 \end{tabularx}
+\renewcommand{\arraystretch}{1}
 \end{table}
 
 \subsection{Pipeline del sistema}
@@ -348,7 +359,7 @@ El dise\~no visual no fue planteado como una colecci\'on de gr\'aficos independi
     \label{fig:profiling_view}
 \end{figure}
 
-\textbf{Vista bivariada.} Permite comparar dos variables mediante dispersi\'on y color por una tercera variable. Apoya T3 porque permite revisar relaciones entre bienestar, riesgo, telemetr\'ia o cognici\'on. Es especialmente importante para validar el Caso 2, donde se contrasta la relaci\'on entre sesiones totales y sesiones nocturnas. La Figura \ref{fig:bivariate_view} muestra la vista usada para explorar relaciones entre pares de variables.
+\textbf{Vista bivariada.} Permite comparar dos variables mediante dispersi\'on y color por una tercera variable. Apoya T2 porque permite revisar relaciones entre bienestar, riesgo, telemetr\'ia o cognici\'on. Es especialmente importante para validar el Caso 2, donde se contrasta la relaci\'on entre sesiones totales y sesiones nocturnas. La Figura \ref{fig:bivariate_view} muestra la vista usada para explorar relaciones entre pares de variables.
 
 \begin{figure}[H]
     \centering
@@ -357,7 +368,7 @@ El dise\~no visual no fue planteado como una colecci\'on de gr\'aficos independi
     \label{fig:bivariate_view}
 \end{figure}
 
-\textbf{Vista de encuestas e \'indices.} Organiza escalas como GDT, PROMIS, WEMWBS y BANGS. Apoya T2 y T3 porque permite interpretar variables psicol\'ogicas como dimensiones del vector, no como columnas aisladas. Esta vista respalda el Caso 3, donde las escalas de bienestar y riesgo se analizan junto con registros de uso del tiempo. La Figura \ref{fig:surveys_view} muestra la organizaci\'on de estas escalas en la herramienta.
+\textbf{Vista de encuestas e \'indices.} Organiza escalas como GDT, PROMIS, WEMWBS y BANGS. Apoya T2 porque permite interpretar variables psicol\'ogicas como dimensiones del vector, no como columnas aisladas. Esta vista respalda el Caso 3, donde las escalas de bienestar y riesgo se analizan junto con registros de uso del tiempo. La Figura \ref{fig:surveys_view} muestra la organizaci\'on de estas escalas en la herramienta.
 
 \begin{figure}[H]
     \centering
@@ -375,7 +386,7 @@ El dise\~no visual no fue planteado como una colecci\'on de gr\'aficos independi
     \label{fig:vector_view}
 \end{figure}
 
-\textbf{Vista de filtros.} Permite restringir participantes por variables num\'ericas o categ\'oricas. Apoya T1, T4, T5 y T6 porque permite revisar si un patr\'on se mantiene dentro de submuestras. Es una vista de control: ayuda a separar patrones de comportamiento de patrones provocados por baja cobertura. La Figura \ref{fig:filters_view} muestra los controles disponibles para restringir la muestra.
+\textbf{Vista de filtros.} Permite restringir participantes por variables num\'ericas o categ\'oricas. Apoya T1 y T4 porque permite revisar si un patr\'on se mantiene dentro de submuestras. Es una vista de control: ayuda a separar patrones de comportamiento de patrones provocados por baja cobertura. La Figura \ref{fig:filters_view} muestra los controles disponibles para restringir la muestra.
 
 \begin{figure}[H]
     \centering
@@ -384,7 +395,7 @@ El dise\~no visual no fue planteado como una colecci\'on de gr\'aficos independi
     \label{fig:filters_view}
 \end{figure}
 
-\textbf{Vista de reducci\'on dimensional y clustering.} Proyecta participantes con PCA, UMAP o t-SNE, colorea por variable o cluster, permite selecci\'on con click/lazo, ejecuta clustering, calcula m\'etricas y muestra interpretaci\'on por variables originales. Apoya T4, T5 y T6. Esta vista permite localizar perfiles, pero no se interpreta sola: la explicaci\'on de cada grupo se valida con las variables originales. La Figura \ref{fig:reduction_view} muestra la proyecci\'on PCA generada desde la aplicaci\'on.
+\textbf{Vista de reducci\'on dimensional y clustering.} Proyecta participantes con PCA, UMAP o t-SNE, colorea por variable o cluster, permite selecci\'on con click/lazo, ejecuta clustering, calcula m\'etricas y muestra interpretaci\'on por variables originales. Apoya T3 y T4. Esta vista permite localizar perfiles, pero no se interpreta sola: la explicaci\'on de cada grupo se valida con las variables originales. La Figura \ref{fig:reduction_view} muestra la proyecci\'on PCA generada desde la aplicaci\'on.
 
 \begin{figure}[H]
     \centering
@@ -411,12 +422,12 @@ El dise\~no visual no fue planteado como una colecci\'on de gr\'aficos independi
 \midrule
 Datos / resumen BI & Indicadores y barras de cobertura & Participantes, variables, fuentes, faltantes & Carga de dataset y revisi\'on de resumen & T1 \\
 Profiling & Histogramas, tablas y frecuencias & Columnas num\'ericas y categ\'oricas & Selecci\'on de columna, revisi\'on de distribuci\'on & T1, T2 \\
-Bivariado & Scatter plot y correlaci\'on & Dos variables principales y una variable de color & Cambio de ejes, color, tooltip & T3 \\
-Encuestas e \'indices & Descomposici\'on de escalas y heatmap & GDT, PROMIS, WEMWBS, BANGS & Selecci\'on de variables y comparaci\'on de \'items & T2, T3 \\
+Bivariado & Scatter plot y correlaci\'on & Dos variables principales y una variable de color & Cambio de ejes, color, tooltip & T2 \\
+Encuestas e \'indices & Descomposici\'on de escalas y heatmap & GDT, PROMIS, WEMWBS, BANGS & Selecci\'on de variables y comparaci\'on de \'items & T2 \\
 Vector & Lista de variables, evaluaci\'on y recomendaciones & Variables num\'ericas seleccionadas, cobertura, correlaci\'on & Agregar/quitar variables, usar vector recomendado & T2 \\
-Filtros & Controles num\'ericos y categ\'oricos & Variables del dataset y selecciones globales & Filtrar, limpiar filtros, restringir casos & T1, T4, T5, T6 \\
-PCA/t-SNE/UMAP & Proyecci\'on 2D, clustering y tablas & Coordenadas, color, clusters, variables originales & Zoom, lazo, click, selecci\'on de grupos, at\'ipicos y clusters & T4, T5, T6 \\
-Validaci\'on & Gr\'aficos interactivos y lectura guiada & Cobertura, clusters, bienestar, riesgo, telemetr\'ia y uso del tiempo & Hover, click, selecci\'on por lazo/caja y perfil agregado & T1, T3, T4, T5, T6 \\
+Filtros & Controles num\'ericos y categ\'oricos & Variables del dataset y selecciones globales & Filtrar, limpiar filtros, restringir casos & T1, T4 \\
+PCA/t-SNE/UMAP & Proyecci\'on 2D, clustering y tablas & Coordenadas, color, clusters, variables originales & Zoom, lazo, click, selecci\'on de grupos, at\'ipicos y clusters & T3, T4 \\
+Validaci\'on & Gr\'aficos interactivos y lectura guiada & Cobertura, clusters, bienestar, riesgo, telemetr\'ia y uso del tiempo & Hover, click, selecci\'on por lazo/caja y perfil agregado & T1, T2, T3, T4 \\
 \bottomrule
 \end{tabularx}
 \end{table}

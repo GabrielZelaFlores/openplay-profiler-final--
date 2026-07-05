@@ -37,7 +37,7 @@ const CASES = [
       "La cobertura por fuente se calcula desde las banderas del dataset cargado. Las fuentes con poca cobertura se leen con cautela.",
     validation:
       "El grafico de barras se genera desde los datos actuales; al pasar el cursor se observa el porcentaje exacto de participantes con cada fuente.",
-    tasks: "T1, T2",
+    tasks: "T1, T4",
   },
   {
     title: "Caso 2: intensidad nocturna",
@@ -48,7 +48,7 @@ const CASES = [
       "Los puntos se colorean por perfil calculado desde el vector original, y la relacion se valida con sesiones totales vs. nocturnas.",
     validation:
       "Click abre el participante; seleccion con lazo/caja calcula un perfil agregado del grupo seleccionado.",
-    tasks: "T3, T4, T5",
+    tasks: "T2, T3, T4",
   },
   {
     title: "Caso 3: bienestar, riesgo y uso registrado",
@@ -59,7 +59,7 @@ const CASES = [
       "El grafico compara medias estandarizadas por perfil para bienestar, riesgo y uso del tiempo.",
     validation:
       "La lectura no depende de una imagen estatica: las barras salen del clustering calculado al cargar el dataset.",
-    tasks: "T2, T3, T5",
+    tasks: "T2, T3, T4",
   },
   {
     title: "Caso 4: perfil multiplataforma",
@@ -70,7 +70,7 @@ const CASES = [
       "La cobertura por cluster permite diferenciar intensidad de juego frente a observabilidad multiplataforma.",
     validation:
       "El grafico agrupa fuentes por perfil y permite revisar porcentajes exactos con hover.",
-    tasks: "T1, T4, T5, T6",
+    tasks: "T1, T3, T4",
   },
 ];
 
