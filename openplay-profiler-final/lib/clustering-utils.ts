@@ -29,6 +29,91 @@ export interface ClusterResult {
   parameters: Record<string, number | string>;
 }
 
+export interface VectorKMeansResult {
+  labels: number[];
+  centers: number[][];
+  iterationsRun: number;
+  converged: boolean;
+  sse: number;
+}
+
+function seededRandom(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (1664525 * state + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+function vectorDistance(a: number[], b: number[]) {
+  return a.reduce((sum, value, index) => sum + (value - b[index]) ** 2, 0);
+}
+
+export function runKMeansVectors(
+  vectors: number[][],
+  clusterCount: number,
+  iterations = 80,
+  seed = 42
+): VectorKMeansResult {
+  if (vectors.length < 2 || !vectors[0]?.length) throw new Error("Se necesitan al menos 2 vectores no vacios.");
+  if (vectors.some((row) => row.length !== vectors[0].length || row.some((value) => !Number.isFinite(value)))) {
+    throw new Error("K-means requiere una matriz rectangular de valores finitos.");
+  }
+  const n = vectors.length;
+  const k = Math.max(2, Math.min(Math.floor(clusterCount), n));
+  const random = seededRandom(seed);
+  const centers: number[][] = [vectors[Math.floor(random() * n)].slice()];
+  while (centers.length < k) {
+    const distances = vectors.map((vector) => Math.min(...centers.map((center) => vectorDistance(vector, center))));
+    const total = distances.reduce((sum, distance) => sum + distance, 0);
+    if (total === 0) {
+      const unused = vectors.find((vector) => !centers.some((center) => vectorDistance(vector, center) === 0));
+      centers.push((unused ?? vectors[centers.length % n]).slice());
+      continue;
+    }
+    let target = random() * total;
+    let index = 0;
+    for (; index < n - 1; index++) {
+      target -= distances[index];
+      if (target <= 0) break;
+    }
+    centers.push(vectors[index].slice());
+  }
+
+  let labels = new Array<number>(n).fill(-1);
+  let converged = false;
+  let iterationsRun = 0;
+  for (let iteration = 0; iteration < iterations; iteration++) {
+    iterationsRun = iteration + 1;
+    const nextLabels = vectors.map((vector) => {
+      let best = 0;
+      for (let c = 1; c < centers.length; c++) {
+        if (vectorDistance(vector, centers[c]) < vectorDistance(vector, centers[best])) best = c;
+      }
+      return best;
+    });
+    converged = nextLabels.every((label, index) => label === labels[index]);
+    labels = nextLabels;
+    for (let c = 0; c < k; c++) {
+      const members = vectors.filter((_, index) => labels[index] === c);
+      if (!members.length) {
+        const farthest = vectors
+          .map((vector, index) => ({ index, distance: vectorDistance(vector, centers[labels[index]]) }))
+          .sort((a, b) => b.distance - a.distance)[0].index;
+        labels[farthest] = c;
+        centers[c] = vectors[farthest].slice();
+      } else {
+        centers[c] = centers[c].map((_, dimension) =>
+          members.reduce((sum, vector) => sum + vector[dimension], 0) / members.length
+        );
+      }
+    }
+    if (converged) break;
+  }
+  const sse = vectors.reduce((sum, vector, index) => sum + vectorDistance(vector, centers[labels[index]]), 0);
+  return { labels, centers, iterationsRun, converged, sse };
+}
+
 class UnionFind {
   private parent: number[];
   private size: number[];
@@ -193,57 +278,66 @@ function summarize(points: Point2D[], labelsByIndex: ClusterLabel[], method: Clu
   };
 }
 
-export function runKMeans(points: Point2D[], clusterCount: number, iterations = 80): ClusterResult {
+export function summarizeAssignedClusters(
+  points: Point2D[],
+  labels: Record<string, ClusterLabel>,
+  parameters: ClusterResult["parameters"] = {}
+): ClusterResult {
+  const labelsByIndex = points.map((point) => labels[String(point.record_id)] ?? -1);
+  return summarize(points, labelsByIndex, "kmeans", {
+    source: "official-original-space",
+    ...parameters,
+  });
+}
+
+export function runKMeans(points: Point2D[], clusterCount: number, iterations = 80, seed = 42): ClusterResult {
   const n = points.length;
   if (n < 2) throw new Error("Se necesitan al menos 2 puntos para K-means.");
-
-  const k = Math.max(2, Math.min(Math.floor(clusterCount), n));
-  const sorted = [...points].sort((a, b) => a.x - b.x);
-  let centers = Array.from({ length: k }, (_, idx) => {
-    const pos = Math.round(((idx + 0.5) / k) * (sorted.length - 1));
-    return { x: sorted[pos].x, y: sorted[pos].y };
-  });
-  let labelsByIndex: ClusterLabel[] = new Array(n).fill(0);
-
-  for (let iter = 0; iter < iterations; iter++) {
-    let changed = false;
-
-    labelsByIndex = points.map((point, pointIndex) => {
-      let bestLabel = 0;
-      let bestDistance = Infinity;
-      centers.forEach((center, centerIndex) => {
-        const distance = squaredDistanceToCenter(point, center);
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          bestLabel = centerIndex;
-        }
-      });
-      if (labelsByIndex[pointIndex] !== bestLabel) changed = true;
-      return bestLabel;
-    });
-
-    centers = centers.map((center, centerIndex) => {
-      const members = points.filter((_, pointIndex) => labelsByIndex[pointIndex] === centerIndex);
-      if (!members.length) {
-        const farthest = points
-          .map((point) => ({ point, distance: Math.min(...centers.map((c) => squaredDistanceToCenter(point, c))) }))
-          .sort((a, b) => b.distance - a.distance)[0]?.point;
-        return farthest ? { x: farthest.x, y: farthest.y } : center;
-      }
-      return {
-        x: members.reduce((sum, point) => sum + point.x, 0) / members.length,
-        y: members.reduce((sum, point) => sum + point.y, 0) / members.length,
-      };
-    });
-
-    if (!changed) break;
-  }
+  const vectorResult = runKMeansVectors(points.map((point) => [point.x, point.y]), clusterCount, iterations, seed);
+  const labelsByIndex: ClusterLabel[] = vectorResult.labels;
 
   return summarize(points, labelsByIndex, "kmeans", {
-    clusters: k,
-    iterations,
+    clusters: vectorResult.centers.length,
+    iterations: vectorResult.iterationsRun,
+    seed,
     distance: "euclidean",
   });
+}
+
+export function adjustedRandIndex(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length < 2) return NaN;
+  const choose2 = (n: number) => n * (n - 1) / 2;
+  const contingency = new Map<string, number>();
+  const rows = new Map<number, number>();
+  const cols = new Map<number, number>();
+  for (let i = 0; i < a.length; i++) {
+    const key = `${a[i]}:${b[i]}`;
+    contingency.set(key, (contingency.get(key) ?? 0) + 1);
+    rows.set(a[i], (rows.get(a[i]) ?? 0) + 1);
+    cols.set(b[i], (cols.get(b[i]) ?? 0) + 1);
+  }
+  const pairs = [...contingency.values()].reduce((sum, n) => sum + choose2(n), 0);
+  const rowPairs = [...rows.values()].reduce((sum, n) => sum + choose2(n), 0);
+  const colPairs = [...cols.values()].reduce((sum, n) => sum + choose2(n), 0);
+  const totalPairs = choose2(a.length);
+  const expected = rowPairs * colPairs / totalPairs;
+  const maximum = (rowPairs + colPairs) / 2;
+  return maximum === expected ? 1 : (pairs - expected) / (maximum - expected);
+}
+
+export function assessKMeansStability(vectors: number[][], k: number, runs = 8) {
+  const solutions = Array.from({ length: Math.max(2, runs) }, (_, index) =>
+    runKMeansVectors(vectors, k, 100, 2026 + index).labels
+  );
+  const scores: number[] = [];
+  for (let i = 0; i < solutions.length; i++) {
+    for (let j = i + 1; j < solutions.length; j++) scores.push(adjustedRandIndex(solutions[i], solutions[j]));
+  }
+  return {
+    runs: solutions.length,
+    meanAdjustedRand: scores.reduce((sum, score) => sum + score, 0) / scores.length,
+    minAdjustedRand: Math.min(...scores),
+  };
 }
 
 export function runHierarchicalSingleLink(points: Point2D[], clusterCount: number): ClusterResult {

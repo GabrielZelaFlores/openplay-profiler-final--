@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
 import { parseNumericValue, pearsonCorrelationFromRows } from "@/lib/data-utils";
@@ -7,14 +7,33 @@ import { Filter, TrendingUp, X } from "lucide-react";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
+function VariableSelect({ label, value, onChange, cols }: {
+  label: string; value: string; onChange: (value: string) => void; cols: string[];
+}) {
+  return <div className="flex items-center gap-2 text-xs">
+    <label className="text-gray-500 w-14 shrink-0">{label}</label>
+    <select value={value} onChange={(event) => onChange(event.target.value)} className="flex-1 border border-gray-200 rounded px-2 py-1 text-xs text-gray-700">
+      <option value="">— seleccionar —</option>
+      {cols.map((column) => <option key={column} value={column}>{column}</option>)}
+    </select>
+  </div>;
+}
+
 export default function InteractivePlot() {
-  const { columns, filteredRows, columnStats, setSelectedParticipant, setSelectedRecordIds, clearSelectedRecordIds } = useStore();
+  const { columns, filteredRows, columnStats, setSelectedParticipant, setSelectedRecordIds, clearSelectedRecordIds, bivariatePreset, analysisRun } = useStore();
 
   const [xCol, setXCol] = useState("");
   const [yCol, setYCol] = useState("");
   const [colorCol, setColorCol] = useState("");
   const [showTrend, setShowTrend] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!bivariatePreset) return;
+    setXCol(bivariatePreset.x);
+    setYCol(bivariatePreset.y);
+    setColorCol(bivariatePreset.color);
+  }, [bivariatePreset]);
 
   const numericCols = useMemo(
     () => columns.filter((c) => columnStats[c]?.type === "numeric"),
@@ -90,7 +109,9 @@ export default function InteractivePlot() {
       xVals.push(x);
       yVals.push(y);
       customIds.push(String(row["record_id"]));
-      const cv = parseNumericValue(row[colorCol]);
+      const cv = colorCol === "official_cluster"
+        ? analysisRun?.labels[String(row["record_id"])] ?? 0
+        : parseNumericValue(row[colorCol]);
       colorVals.push(Number.isFinite(cv) ? cv : 0);
       texts.push(`ID: ${row["record_id"]}<br>${xCol}: ${x.toFixed(2)}<br>${yCol}: ${y.toFixed(2)}`);
     }
@@ -165,20 +186,7 @@ export default function InteractivePlot() {
     }
 
     return result;
-  }, [xCol, yCol, colorCol, filteredRows, showTrend, selectedIds, rowById]);
-
-  const Sel = ({ label, value, onChange, cols }: {
-    label: string; value: string; onChange: (v: string) => void; cols: string[];
-  }) => (
-    <div className="flex items-center gap-2 text-xs">
-      <label className="text-gray-500 w-14 shrink-0">{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="flex-1 border border-gray-200 rounded px-2 py-1 text-xs text-gray-700">
-        <option value="">— seleccionar —</option>
-        {cols.map((c) => <option key={c} value={c}>{c}</option>)}
-      </select>
-    </div>
-  );
+  }, [xCol, yCol, colorCol, filteredRows, showTrend, selectedIds, rowById, analysisRun]);
 
   return (
     <div className="bg-white border border-gray-200 rounded p-4">
@@ -187,9 +195,9 @@ export default function InteractivePlot() {
       </h2>
 
       <div className="grid grid-cols-2 gap-2 mb-3">
-        <Sel label="Eje X" value={xCol} onChange={setXCol} cols={numericCols} />
-        <Sel label="Eje Y" value={yCol} onChange={setYCol} cols={numericCols} />
-        <Sel label="Color" value={colorCol} onChange={setColorCol} cols={columns} />
+        <VariableSelect label="Eje X" value={xCol} onChange={setXCol} cols={numericCols} />
+        <VariableSelect label="Eje Y" value={yCol} onChange={setYCol} cols={numericCols} />
+        <VariableSelect label="Color" value={colorCol} onChange={setColorCol} cols={analysisRun ? ["official_cluster", ...columns] : columns} />
         <div className="flex items-center gap-2 text-xs">
           <label className="text-gray-500 w-14">Tendencia</label>
           <button onClick={() => setShowTrend((t) => !t)}

@@ -1,5 +1,6 @@
 from pathlib import Path
 import shutil
+import json
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,27 +28,8 @@ plt.rcParams.update({
 })
 
 df = pd.read_csv(DATA)
-
-features = [
-    "age",
-    "num_platforms",
-    "num_telemetry_platforms",
-    "gdt_total",
-    "promis_total",
-    "wemwbs_total",
-    "bangs_total",
-    "telem_nocturnal_sessions",
-    "telem_total_sessions",
-    "steam_playtime_2weeks_max",
-    "steam_unique_games",
-    "timeuse_gaming_entries",
-    "timeuse_num_days",
-    "cog_mean_rt",
-    "cog_mean_accuracy",
-    "daily_played_days",
-]
-
-features = [col for col in features if col in df.columns]
+analysis = json.loads((OUT / "analysis_run.json").read_text(encoding="utf-8"))
+features = analysis["config"]["features"]
 X = df[features].apply(pd.to_numeric, errors="coerce")
 Z = StandardScaler().fit_transform(SimpleImputer(strategy="median").fit_transform(X))
 
@@ -61,7 +43,8 @@ umap_coords = umap.UMAP(
     random_state=42,
 ).fit_transform(Z)
 
-labels = KMeans(n_clusters=4, random_state=42, n_init=50).fit_predict(Z)
+labels_by_id = {str(key): value for key, value in analysis["labels"].items()}
+labels = np.array([labels_by_id[str(record_id)] for record_id in df["record_id"]])
 labels_pca2d = KMeans(n_clusters=4, random_state=42, n_init=50).fit_predict(coords)
 work = df.copy()
 work["cluster"] = labels
@@ -76,10 +59,8 @@ zdf["cluster"] = labels
 profile = zdf.groupby("cluster")[features].mean()
 
 cluster_names = {
-    0: "C0: multiplataforma",
-    1: "C1: baja intensidad/menor cobertura",
-    2: "C2: alta intensidad nocturna",
-    3: "C3: mayor malestar y uso registrado",
+    cluster["label"]: f'C{cluster["label"]}: {cluster["name"].lower()}'
+    for cluster in analysis["clusters"]
 }
 
 colors = {

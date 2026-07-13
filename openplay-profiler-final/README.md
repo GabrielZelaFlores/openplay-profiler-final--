@@ -16,8 +16,9 @@ Identificar perfiles exploratorios de jugadores combinando variables de comporta
 4. Evaluacion del vector: cantidad de variables numericas, cobertura, casos completos y redundancia por correlacion.
 5. Estandarizacion e imputacion controlada.
 6. Reduccion dimensional con PCA, UMAP o t-SNE.
-7. Clustering sobre la proyeccion 2D con K-means, jerarquico single-link o DBSCAN.
-8. Interpretacion de grupos usando variables originales.
+7. K-means oficial sobre el vector original estandarizado; PCA/UMAP/t-SNE muestran esas mismas etiquetas.
+8. Comparaciones 2D opcionales con jerarquico single-link o DBSCAN.
+9. Interpretacion y validacion de grupos usando variables originales.
 
 ## Requisitos
 
@@ -84,6 +85,25 @@ Tambien usa una cache local privada:
 ```text
 data/telemetry_aggregated.json
 ```
+
+El proceso ejecuta automáticamente la minimización de la copia pública. La política,
+las columnas excluidas y el procedimiento de publicación están documentados en
+[`docs/PRIVACY.md`](docs/PRIVACY.md). Los datos fuente no están cubiertos por una
+licencia de código y no deben redistribuirse sin autorización explícita.
+
+La preparación analítica para la exposición, los recorridos cognitivos, el guion de
+ocho minutos y las respuestas a posibles preguntas están en
+[`docs/EVALUACION_FINAL.md`](docs/EVALUACION_FINAL.md).
+
+Las definiciones en lenguaje sencillo y la explicación honesta del uso de IA están
+en [`docs/CONCEPTOS_PARA_DEFENSA.md`](docs/CONCEPTOS_PARA_DEFENSA.md).
+
+La clasificación de T1--T4 y el inventario de todos los gráficos con el marco
+Why--What--How de Munzner están en
+[`docs/TAREAS_MUNZNER.md`](docs/TAREAS_MUNZNER.md).
+
+El recorrido exacto de ocho minutos, con el texto oral y los clics del dashboard,
+está en [`README_EXPOSICION.md`](README_EXPOSICION.md).
 
 ## Funcionalidades
 

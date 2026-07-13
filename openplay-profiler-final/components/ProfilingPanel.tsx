@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
 import { fmt, fmtInt, parseNumericValue } from "@/lib/data-utils";
@@ -20,10 +20,17 @@ function StatRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function ProfilingPanel() {
-  const { columnStats, columns, filteredRows } = useStore();
+  const { columnStats, columns, filteredRows, profilingVariable } = useStore();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [chartType, setChartType] = useState<"histogram" | "box" | "violin" | "bar">("histogram");
+
+  useEffect(() => {
+    if (profilingVariable && columns.includes(profilingVariable)) {
+      setSelected(profilingVariable);
+      setChartType(columnStats[profilingVariable]?.type === "numeric" ? "histogram" : "bar");
+    }
+  }, [profilingVariable, columns, columnStats]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();

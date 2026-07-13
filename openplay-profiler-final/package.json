@@ -6,7 +6,13 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "build:data": "tsx scripts/build-openplay-dataset.ts"
+    "build:data": "tsx scripts/build-openplay-dataset.ts && npm run data:sanitize",
+    "data:sanitize": "tsx scripts/sanitize-public-dataset.ts",
+    "analysis:generate": "tsx scripts/generate-analysis-artifacts.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --max-warnings=0",
+    "check": "npm run lint && npm test && npm run build"
   },
   "dependencies": {
     "jszip": "^3.10.1",
@@ -30,10 +36,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-plotly.js": "^2.6.3",
+    "@vitest/coverage-v8": "^4.1.10",
     "adm-zip": "^0.5.17",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.10",
     "tailwindcss": "^4",
     "tsx": "^4.19.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   },
   "overrides": {
     "postcss": "^8.5.15"

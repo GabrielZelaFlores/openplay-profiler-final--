@@ -69,10 +69,17 @@
   },
   "participantsDetected": 2544,
   "finalRows": 2544,
-  "finalColumns": 186,
+  "finalColumns": 171,
   "warnings": [
     "master_table_openplay_core_v3.csv: No pid column - cannot join to participants.",
     "biweekly.csv: Data dictionary file, not participant data.",
     "games.csv.gz: Reference table only, no pid column."
-  ]
+  ],
+  "publicRelease": {
+    "minimized": true,
+    "directIdentifiersRemoved": true,
+    "ageGeneralizationYears": 5,
+    "rareCategoryThreshold": 10,
+    "policy": "docs/PRIVACY.md"
+  }
 }

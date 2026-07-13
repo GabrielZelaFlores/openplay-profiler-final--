@@ -36,9 +36,9 @@ export function buildMatrix(
 }
 
 // ─── Imputación ──────────────────────────────────────────────────────────────
-function impute(
+export function imputeMatrix(
   matrix: number[][],
-  method: "mean" | "zero" | "drop"
+  method: "mean" | "median" | "zero" | "drop"
 ): { matrix: number[][]; validIndices: number[] } {
   const ncols = matrix[0]?.length ?? 0;
   if (method === "drop") {
@@ -51,16 +51,21 @@ function impute(
     const vals = matrix.map((r) => r[j]).filter((v) => isFinite(v));
     return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
   });
+  const colMedians = Array.from({ length: ncols }, (_, j) => {
+    const values = matrix.map((row) => row[j]).filter((value) => isFinite(value)).sort((a, b) => a - b);
+    if (!values.length) return 0;
+    const middle = Math.floor(values.length / 2);
+    return values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
+  });
   const filled = matrix.map((row) =>
-    row.map((v, j) => (isFinite(v) ? v : method === "mean" ? colMeans[j] : 0))
+    row.map((v, j) => isFinite(v) ? v : method === "mean" ? colMeans[j] : method === "median" ? colMedians[j] : 0)
   );
   return { matrix: filled, validIndices: matrix.map((_, i) => i) };
 }
 
 // ─── Estandarización ─────────────────────────────────────────────────────────
-function standardize(matrix: number[][]): number[][] {
+export function standardizeMatrix(matrix: number[][]): number[][] {
   if (!matrix.length || !matrix[0].length) return matrix;
-  const ncols = matrix[0].length;
   const n = matrix.length;
   return matrix.map((row) =>
     row.map((_, j) => {
@@ -72,11 +77,24 @@ function standardize(matrix: number[][]): number[][] {
   );
 }
 
+export function prepareNumericMatrix(
+  rows: DataRow[],
+  variables: string[],
+  imputeMethod: "mean" | "median" | "zero" | "drop" = "mean"
+) {
+  const { matrix, rowIndices } = buildMatrix(rows, variables);
+  const imputed = imputeMatrix(matrix, imputeMethod);
+  return {
+    matrix: standardizeMatrix(imputed.matrix),
+    rowIndices: imputed.validIndices.map((index) => rowIndices[index]),
+  };
+}
+
 // ─── PCA ─────────────────────────────────────────────────────────────────────
 export function runPCA(
   rows: DataRow[],
   variables: string[],
-  imputeMethod: "mean" | "zero" | "drop" = "mean"
+  imputeMethod: "mean" | "median" | "zero" | "drop" = "mean"
 ): {
   coordinates: { record_id: DataValue; x: number; y: number }[];
   metadata: {
@@ -88,8 +106,8 @@ export function runPCA(
   };
 } {
   const { matrix: raw, rowIndices } = buildMatrix(rows, variables);
-  const { matrix: imp, validIndices } = impute(raw, imputeMethod);
-  const std = standardize(imp);
+  const { matrix: imp, validIndices } = imputeMatrix(raw, imputeMethod);
+  const std = standardizeMatrix(imp);
   const n = std.length;
   const p = variables.length;
 
@@ -165,16 +183,17 @@ export async function runUMAP(
   rows: DataRow[],
   variables: string[],
   params: { nNeighbors?: number; minDist?: number; spread?: number } = {},
-  imputeMethod: "mean" | "zero" | "drop" = "mean"
+  imputeMethod: "mean" | "median" | "zero" | "drop" = "mean"
 ) {
   const { UMAP } = await import("umap-js");
   const { matrix: raw, rowIndices } = buildMatrix(rows, variables);
-  const { matrix: imp, validIndices } = impute(raw, imputeMethod);
-  const std = standardize(imp);
+  const { matrix: imp, validIndices } = imputeMatrix(raw, imputeMethod);
+  const std = standardizeMatrix(imp);
   const actualRows = validIndices.map((vi) => rowIndices[vi]);
 
+  if (std.length < 3) throw new Error("Se necesitan al menos 3 filas para UMAP.");
   const umap = new UMAP({
-    nNeighbors: params.nNeighbors ?? 15,
+    nNeighbors: Math.min(params.nNeighbors ?? 15, std.length - 1),
     minDist: params.minDist ?? 0.1,
     spread: params.spread ?? 1,
     nComponents: 2,
@@ -201,14 +220,15 @@ export async function runTSNE(
   rows: DataRow[],
   variables: string[],
   params: { perplexity?: number; iterations?: number; learningRate?: number } = {},
-  imputeMethod: "mean" | "zero" | "drop" = "mean",
+  imputeMethod: "mean" | "median" | "zero" | "drop" = "mean",
   onProgress?: (pct: number) => void
 ) {
   const { matrix: raw, rowIndices } = buildMatrix(rows, variables);
-  const { matrix: imp, validIndices } = impute(raw, imputeMethod);
-  const std = standardize(imp);
+  const { matrix: imp, validIndices } = imputeMatrix(raw, imputeMethod);
+  const std = standardizeMatrix(imp);
   const actualRows = validIndices.map((vi) => rowIndices[vi]);
   const n = std.length;
+  if (n < 4 || !std[0]?.length) throw new Error("Se necesitan al menos 4 filas y una variable para t-SNE.");
 
   const perplexity = Math.min(params.perplexity ?? 30, Math.max(2, Math.floor((n - 1) / 3)));
   const iterations = params.iterations ?? 500;
@@ -254,8 +274,8 @@ export async function runTSNE(
   const random = createSeededRandom(2026);
   const P2 = symP;
   const Y = Array.from({ length: n }, () => [(random() - 0.5) * 1e-4, (random() - 0.5) * 1e-4]);
-  let dY = Array.from({ length: n }, () => [0, 0]);
-  let gains = Array.from({ length: n }, () => [1.0, 1.0]);
+  const dY = Array.from({ length: n }, () => [0, 0]);
+  const gains = Array.from({ length: n }, () => [1.0, 1.0]);
 
   const BATCH = 20; // Yield cada N iteraciones
   for (let iter = 0; iter < iterations; iter++) {

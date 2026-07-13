@@ -28,6 +28,10 @@
 # misc
 .DS_Store
 *.pem
+/tmp/
+/informe/tmp/
+/informe/output/
+/output/pdf/main.*
 
 # debug
 npm-debug.log*

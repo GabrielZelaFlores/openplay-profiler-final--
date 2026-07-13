@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
 import { useStore } from "@/lib/store";
+import type { DashboardTab } from "@/lib/store";
 import DataUpload from "@/components/DataUpload";
 import ZipContentsPreview from "@/components/ZipContentsPreview";
 import DatasetPreview from "@/components/DatasetPreview";
@@ -18,9 +18,7 @@ import VisualRecommendations from "@/components/VisualRecommendations";
 import CaseStudiesValidation from "@/components/CaseStudiesValidation";
 import { Database, BarChart2, Filter, Activity, BookOpen, GitBranch, TrendingUp, ShieldCheck } from "lucide-react";
 
-type Tab = "datos" | "profiling" | "bivariado" | "encuestas" | "vector" | "filtros" | "reduccion" | "validacion";
-
-const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+const TABS: { id: DashboardTab; label: string; icon: React.ReactNode }[] = [
   { id: "datos",    label: "Datos",           icon: <Database size={14} /> },
   { id: "profiling",label: "Profiling",        icon: <BarChart2 size={14} /> },
   { id: "bivariado",label: "Bivariado",         icon: <TrendingUp size={14} /> },
@@ -36,9 +34,8 @@ function ParticipantModal() {
   if (!selectedParticipant) return null;
 
   const sections: { label: string; keys: string[] }[] = [
-    { label: "Identificación", keys: ["record_id","pid","age","gender","country","cohort"] },
-    { label: "Demografía", keys: ["edu_level","employment","marital_status","ethnicity","height","weight","dependents","num_platforms"] },
-    { label: "Neurodiversidad", keys: ["neuro_identify","neuro_diagnosed","neuro_diag_asd","neuro_diag_adhd","neuro_diag_dyslexia"] },
+    { label: "Identificación anonimizada", keys: ["record_id","age","gender","country"] },
+    { label: "Demografía minimizada", keys: ["num_platforms"] },
     { label: "GDT", keys: ["bw_gdt_1","bw_gdt_2","bw_gdt_3","bw_gdt_4","gdt_total"] },
     { label: "PROMIS", keys: ["bw_promis_1","bw_promis_2","bw_promis_3","bw_promis_4","bw_promis_5","bw_promis_6","bw_promis_7","bw_promis_8","promis_total"] },
     { label: "WEMWBS", keys: ["bw_wemwbs_1","bw_wemwbs_2","bw_wemwbs_3","bw_wemwbs_4","bw_wemwbs_5","bw_wemwbs_6","bw_wemwbs_7","wemwbs_total"] },
@@ -59,7 +56,7 @@ function ParticipantModal() {
         <div className="flex items-center justify-between p-4 border-b border-gray-200 sticky top-0 bg-white">
           <div>
             <h3 className="font-semibold text-gray-800">Perfil del participante</h3>
-            <div className="text-xs text-gray-500">record_id: {selectedParticipant["record_id"]} · pid: {selectedParticipant["pid"]}</div>
+            <div className="text-xs text-gray-500">record_id anonimizado: {selectedParticipant["record_id"]}</div>
           </div>
           <button onClick={() => setSelectedParticipant(null)} className="text-gray-400 hover:text-gray-700 text-xl leading-none">×</button>
         </div>
@@ -88,8 +85,7 @@ function ParticipantModal() {
 }
 
 export default function HomePage() {
-  const { rows, selectedVariables } = useStore();
-  const [activeTab, setActiveTab] = useState<Tab>("datos");
+  const { rows, selectedVariables, activeTab, setActiveTab } = useStore();
   const hasData = rows.length > 0;
 
   return (

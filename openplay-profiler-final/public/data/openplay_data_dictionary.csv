@@ -1,16 +1,8 @@
 variable,source_file,original_column,generated_column,aggregation,description,data_type,missing_values
 record_id,survey_intake_raw.csv.gz,record_id,record_id,direct,Variable: record_id,mixed,0
-pid,survey_intake_raw.csv.gz,pid,pid,direct,Variable: pid,mixed,0
 age,survey_intake_raw.csv.gz,age,age,direct,Variable: age,mixed,0
 gender,survey_intake_raw.csv.gz,gender,gender,direct,Variable: gender,mixed,0
 country,survey_intake_raw.csv.gz,country,country,direct,Variable: country,mixed,0
-cohort,survey_intake_raw.csv.gz,cohort,cohort,direct,Variable: cohort,mixed,0
-edu_level,survey_intake_raw.csv.gz,edu_level,edu_level,direct,Variable: edu_level,mixed,0
-employment,survey_intake_raw.csv.gz,employment,employment,direct,Variable: employment,mixed,0
-marital_status,survey_intake_raw.csv.gz,marital_status,marital_status,direct,Variable: marital_status,mixed,0
-height,survey_intake_raw.csv.gz,height,height,direct,Variable: height,mixed,170
-weight,survey_intake_raw.csv.gz,weight,weight,direct,Variable: weight,mixed,169
-ethnicity,survey_intake_raw.csv.gz,ethnicity,ethnicity,direct,Variable: ethnicity,mixed,0
 num_platforms,survey_intake_raw.csv.gz,num_platforms,num_platforms,direct,Variable: num_platforms,mixed,0
 self_reported_weekly_play,survey_intake_raw.csv.gz,self_reported_weekly_play,self_reported_weekly_play,direct,Variable: self_reported_weekly_play,mixed,455
 plays_xbox,survey_intake_raw.csv.gz,plays_xbox,plays_xbox,direct,Variable: plays_xbox,mixed,2544
@@ -19,12 +11,6 @@ plays_nintendo,survey_intake_raw.csv.gz,plays_nintendo,plays_nintendo,direct,Var
 plays_ios,survey_intake_raw.csv.gz,plays_ios,plays_ios,direct,Variable: plays_ios,mixed,2544
 plays_android,survey_intake_raw.csv.gz,plays_android,plays_android,direct,Variable: plays_android,mixed,2544
 plays_playstation,survey_intake_raw.csv.gz,plays_playstation,plays_playstation,direct,Variable: plays_playstation,mixed,2544
-neuro_identify,survey_intake_raw.csv.gz,neuro_identify,neuro_identify,direct,Variable: neuro_identify,mixed,2544
-neuro_diagnosed,survey_intake_raw.csv.gz,neuro_diagnosed,neuro_diagnosed,direct,Variable: neuro_diagnosed,mixed,2544
-neuro_diag_asd,survey_intake_raw.csv.gz,neuro_diag_asd,neuro_diag_asd,direct,Variable: neuro_diag_asd,mixed,2544
-neuro_diag_adhd,survey_intake_raw.csv.gz,neuro_diag_adhd,neuro_diag_adhd,direct,Variable: neuro_diag_adhd,mixed,2544
-neuro_diag_dyslexia,survey_intake_raw.csv.gz,neuro_diag_dyslexia,neuro_diag_dyslexia,direct,Variable: neuro_diag_dyslexia,mixed,2544
-dependents,survey_intake_raw.csv.gz,dependents,dependents,direct,Variable: dependents,mixed,2130
 intake_life_sat,survey_intake_raw.csv.gz,intake_life_sat,intake_life_sat,direct,Variable: intake_life_sat,mixed,2544
 intake_affective_valence,survey_intake_raw.csv.gz,intake_affective_valence,intake_affective_valence,direct,Variable: intake_affective_valence,mixed,2544
 intake_wemwbs_1,survey_intake_raw.csv.gz,intake_wemwbs_1,intake_wemwbs_1,direct,Variable: intake_wemwbs_1,mixed,2544
@@ -147,7 +133,6 @@ cog_num_trials,cognitive_tasks_raw.csv.gz,cog_num_trials,cog_num_trials,aggregat
 daily_num_responses,survey_daily_raw.csv.gz,daily_num_responses,daily_num_responses,aggregated,Variable: daily_num_responses,mixed,1314
 daily_played_days,survey_daily_raw.csv.gz,daily_played_days,daily_played_days,aggregated,Variable: daily_played_days,mixed,1314
 daily_stress_days,survey_daily_raw.csv.gz,daily_stress_days,daily_stress_days,aggregated,Variable: daily_stress_days,mixed,1314
-geo_area,survey_intake_raw.csv.gz,geo_area,geo_area,direct,Variable: geo_area,mixed,1
 has_android,survey_intake_raw.csv.gz,has_android,has_android,direct,Variable: has_android,mixed,0
 has_any_telemetry,survey_intake_raw.csv.gz,has_any_telemetry,has_any_telemetry,direct,Variable: has_any_telemetry,mixed,0
 has_biweekly,survey_intake_raw.csv.gz,has_biweekly,has_biweekly,direct,Variable: has_biweekly,mixed,0

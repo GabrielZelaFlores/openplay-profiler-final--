@@ -1,13 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Layers, Moon, Network, ShieldCheck, X } from "lucide-react";
 import { useStore, type DataRow } from "@/lib/store";
 import { parseNumericValue } from "@/lib/data-utils";
-import { RECOMMENDED_PROJECT_VECTOR, VALIDATION_PROFILE_VARIABLES } from "@/lib/openplay-vector";
-import { runPCA, runTSNE, runUMAP } from "@/lib/dimensionality-utils";
-import { runKMeans, type ClusterResult } from "@/lib/clustering-utils";
+import { RECOMMENDED_PROJECT_VECTOR } from "@/lib/openplay-vector";
+import { summarizeAssignedClusters, type ClusterResult } from "@/lib/clustering-utils";
+import { runProjectionInWorker } from "@/lib/analytics-worker-client";
+import { analysisRunMatches, createOpenPlayAnalysisRun } from "@/lib/openplay-analysis";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
@@ -26,6 +27,7 @@ const FLAGS = [
 ] as const;
 
 const CLUSTER_COLORS = ["#4f647f", "#9b4d5f", "#5f725c", "#9b6f45"];
+const WELLBEING_CASE_VARIABLES = ["promis_total", "wemwbs_total", "gdt_total", "bangs_total", "timeuse_gaming_entries", "timeuse_num_days"];
 
 const CASES = [
   {
@@ -37,7 +39,13 @@ const CASES = [
       "La cobertura por fuente se calcula desde las banderas del dataset cargado. Las fuentes con poca cobertura se leen con cautela.",
     validation:
       "El grafico de barras se genera desde los datos actuales; al pasar el cursor se observa el porcentaje exacto de participantes con cada fuente.",
+    knowledge: "La cobertura desigual puede producir separaciones por observabilidad; una fuente con pocos participantes no sostiene la misma fuerza de evidencia.",
+    caution: "La cobertura no mide intensidad de juego. Android, iOS y Xbox deben analizarse como submuestras pequeñas.",
+    transformation: "Media de cada bandera has_* multiplicada por 100.",
+    output: "Barra horizontal: fuente en Y y porcentaje de cobertura en X.",
+    confirmation: "Profiling de faltantes y filtros por disponibilidad.",
     tasks: "T1, T4",
+    abstraction: "Descubrir · explorar · resumir y comparar · cobertura y distribuciones",
   },
   {
     title: "Caso 2: intensidad nocturna",
@@ -48,7 +56,13 @@ const CASES = [
       "Los puntos se colorean por perfil calculado desde el vector original, y la relacion se valida con sesiones totales vs. nocturnas.",
     validation:
       "Click abre el participante; seleccion con lazo/caja calcula un perfil agregado del grupo seleccionado.",
+    knowledge: "La nocturnidad observada no aparece aislada: caracteriza un perfil de alta intensidad total que tambien registra actividad nocturna.",
+    caution: "Es una asociacion descriptiva de telemetria; no demuestra efectos sobre sueño, ansiedad o bienestar.",
+    transformation: "log(1 + valor) para reducir la influencia visual de extremos; color = cluster K-means.",
+    output: "Dispersion: sesiones totales en X y nocturnas en Y.",
+    confirmation: "Perfil estandarizado del cluster y variables originales.",
     tasks: "T2, T3, T4",
+    abstraction: "Comprobar · localizar · comparar · relacion entre atributos",
   },
   {
     title: "Caso 3: bienestar, riesgo y uso registrado",
@@ -59,30 +73,35 @@ const CASES = [
       "El grafico compara medias estandarizadas por perfil para bienestar, riesgo y uso del tiempo.",
     validation:
       "La lectura no depende de una imagen estatica: las barras salen del clustering calculado al cargar el dataset.",
+    knowledge: "Un mismo perfil combina mayor PROMIS y riesgo, menor WEMWBS y mas registros de uso del tiempo; la diferencia es multivariada.",
+    caution: "Mas registros tambien implican mayor observabilidad. El perfil no constituye diagnostico ni demuestra causalidad.",
+    transformation: "Imputacion por mediana, estandarizacion y media por cluster.",
+    output: "Barras agrupadas: variable en X y diferencia estandarizada en Y.",
+    confirmation: "Vista de encuestas y filtros has_biweekly/has_timeuse.",
     tasks: "T2, T3, T4",
+    abstraction: "Comprobar · localizar · comparar · caracteristicas multivariadas",
   },
   {
     title: "Caso 4: perfil multiplataforma",
     question: "Que caracteriza a los participantes con mayor cobertura multiplataforma?",
-    variables: "num_platforms, num_telemetry_platforms, has_steam, has_nintendo, has_xbox",
+    variables: "has_steam, has_xbox, has_nintendo, has_android, has_ios, has_cognitive, has_timeuse, has_daily, has_biweekly",
     icon: Network,
     pattern:
       "La cobertura por cluster permite diferenciar intensidad de juego frente a observabilidad multiplataforma.",
     validation:
       "El grafico agrupa fuentes por perfil y permite revisar porcentajes exactos con hover.",
+    knowledge: "La separacion del perfil se explica en parte por mayor cobertura multiplataforma y no solamente por jugar mas.",
+    caution: "La actividad registrada puede aumentar cuando existen mas plataformas observando al participante.",
+    transformation: "Porcentaje medio de cada bandera de fuente dentro de cada cluster.",
+    output: "Barras agrupadas: fuente en X, cobertura en Y y color por cluster.",
+    confirmation: "num_platforms y num_telemetry_platforms en el perfil original.",
     tasks: "T1, T3, T4",
+    abstraction: "Comprobar · localizar · comparar · cobertura y caracteristicas",
   },
 ];
 
 function num(row: DataRow, col: string): number {
   return parseNumericValue(row[col]);
-}
-
-function median(values: number[]): number {
-  const clean = values.filter(Number.isFinite).sort((a, b) => a - b);
-  if (!clean.length) return 0;
-  const mid = Math.floor(clean.length / 2);
-  return clean.length % 2 ? clean[mid] : (clean[mid - 1] + clean[mid]) / 2;
 }
 
 function mean(values: number[]): number {
@@ -97,94 +116,6 @@ function std(values: number[], center = mean(values)): number {
   return Math.sqrt(variance);
 }
 
-function squaredDistance(a: number[], b: number[]): number {
-  let total = 0;
-  for (let i = 0; i < a.length; i += 1) total += (a[i] - b[i]) ** 2;
-  return total;
-}
-
-function kmeans(matrix: number[][], k = 4, iterations = 60): number[] {
-  if (!matrix.length) return [];
-  const sorted = matrix
-    .map((row, idx) => ({ idx, score: row.reduce((sum, value) => sum + value, 0) }))
-    .sort((a, b) => a.score - b.score);
-  let centers = Array.from({ length: k }, (_, clusterIdx) => {
-    const pos = Math.floor(((clusterIdx + 0.5) / k) * sorted.length);
-    return [...matrix[sorted[Math.min(pos, sorted.length - 1)].idx]];
-  });
-  let labels = new Array(matrix.length).fill(0);
-
-  for (let iter = 0; iter < iterations; iter += 1) {
-    let changed = false;
-    labels = matrix.map((row, rowIdx) => {
-      let best = 0;
-      let bestDistance = Infinity;
-      centers.forEach((center, centerIdx) => {
-        const distance = squaredDistance(row, center);
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          best = centerIdx;
-        }
-      });
-      if (best !== labels[rowIdx]) changed = true;
-      return best;
-    });
-
-    centers = centers.map((center, centerIdx) => {
-      const members = matrix.filter((_, rowIdx) => labels[rowIdx] === centerIdx);
-      if (!members.length) return center;
-      return center.map((_, colIdx) => mean(members.map((row) => row[colIdx])));
-    });
-    if (!changed) break;
-  }
-
-  return labels;
-}
-
-function buildAnalysis(rows: DataRow[], featureCandidates: string[]) {
-  const availableFeatures = featureCandidates.filter((col) => rows.some((row) => Number.isFinite(num(row, col))));
-  const medians = availableFeatures.map((col) => median(rows.map((row) => num(row, col))));
-  const raw = rows.map((row) =>
-    availableFeatures.map((col, colIdx) => {
-      const value = num(row, col);
-      return Number.isFinite(value) ? value : medians[colIdx];
-    })
-  );
-  const centers = availableFeatures.map((_, colIdx) => mean(raw.map((row) => row[colIdx])));
-  const scales = availableFeatures.map((_, colIdx) => std(raw.map((row) => row[colIdx]), centers[colIdx]) || 1);
-  const z = raw.map((row) => row.map((value, colIdx) => (value - centers[colIdx]) / scales[colIdx]));
-  const labels = kmeans(z, Math.min(4, Math.max(1, rows.length)));
-
-  const rowsWithCluster = rows.map((row, idx) => ({
-    row,
-    id: String(row["record_id"] ?? row["pid"] ?? idx),
-    cluster: labels[idx] ?? 0,
-  }));
-
-  const profileCols = Array.from(new Set([...VALIDATION_PROFILE_VARIABLES, ...availableFeatures]))
-    .filter((col) => rows.some((row) => Number.isFinite(num(row, col))))
-    .slice(0, 18);
-  const globalStats = Object.fromEntries(
-    profileCols.map((col) => {
-      const values = rows.map((row) => num(row, col));
-      const m = mean(values);
-      return [col, { mean: m, std: std(values, m) || 1 }];
-    })
-  ) as Record<string, { mean: number; std: number }>;
-
-  const clusterCounts = Array.from({ length: 4 }, (_, cluster) => rowsWithCluster.filter((item) => item.cluster === cluster).length);
-  const profile = Array.from({ length: 4 }, (_, cluster) =>
-    profileCols.map((col) => {
-      const members = rowsWithCluster.filter((item) => item.cluster === cluster);
-      const m = mean(members.map((item) => num(item.row, col)));
-      const stat = globalStats[col];
-      return Number.isFinite(m) ? (m - stat.mean) / stat.std : 0;
-    })
-  );
-
-  return { availableFeatures, rowsWithCluster, clusterCounts, profileCols, profile };
-}
-
 export default function CaseStudiesValidation() {
   const {
     rows,
@@ -196,6 +127,11 @@ export default function CaseStudiesValidation() {
     setSelectedRecordIds,
     clearSelectedRecordIds,
     selectedRecordIds,
+    analysisRun,
+    setAnalysisRun,
+    openBivariate,
+    openProfiling,
+    setActiveTab,
   } = useStore();
   const sourceRows = filteredRows.length ? filteredRows : rows;
   const [localSelectedIds, setLocalSelectedIds] = useState<string[]>([]);
@@ -210,6 +146,9 @@ export default function CaseStudiesValidation() {
   const [projectionProgress, setProjectionProgress] = useState(0);
   const [projectionRunning, setProjectionRunning] = useState(false);
   const [projectionError, setProjectionError] = useState<string | null>(null);
+  const [activeCase, setActiveCase] = useState(0);
+  const [caseX, setCaseX] = useState("telem_total_sessions");
+  const [caseY, setCaseY] = useState("telem_nocturnal_sessions");
 
   const recommendedAvailable = useMemo(
     () => RECOMMENDED_PROJECT_VECTOR.filter((col) => columns.includes(col) && columnStats[col]?.type === "numeric"),
@@ -219,12 +158,40 @@ export default function CaseStudiesValidation() {
     () => selectedVariables.filter((col) => columnStats[col]?.type === "numeric"),
     [selectedVariables, columnStats]
   );
+  const availableNumeric = useMemo(
+    () => Object.keys(columnStats).filter((column) => columnStats[column]?.type === "numeric"),
+    [columnStats]
+  );
   const effectiveFeatures = vectorMode === "selected" && selectedNumeric.length >= 2 ? selectedNumeric : recommendedAvailable;
   const effectiveModeLabel = vectorMode === "selected" && selectedNumeric.length >= 2
     ? "Vector seleccionado actualmente"
     : "Vector integral recomendado";
 
-  const analysis = useMemo(() => buildAnalysis(sourceRows, effectiveFeatures), [sourceRows, effectiveFeatures]);
+  const runIsCurrent = analysisRunMatches(analysisRun, sourceRows, effectiveFeatures);
+
+  useEffect(() => {
+    if (!runIsCurrent) {
+      setAnalysisRun(createOpenPlayAnalysisRun(sourceRows, effectiveFeatures, { seed: 2026, iterations: 100 }));
+    }
+  }, [runIsCurrent, sourceRows, effectiveFeatures, setAnalysisRun]);
+
+  const officialRun = runIsCurrent ? analysisRun : null;
+  const analysis = useMemo(() => {
+    const rowsWithCluster = sourceRows.map((row, index) => {
+      const id = String(row["record_id"] ?? row["pid"] ?? index);
+      return { row, id, cluster: officialRun?.labels[id] ?? 0 };
+    });
+    const profileCols = officialRun?.clusters[0]?.profile.map((item) => item.column) ?? [];
+    return {
+      availableFeatures: officialRun?.config.features ?? effectiveFeatures,
+      rowsWithCluster,
+      clusterCounts: officialRun?.clusters.map((cluster) => cluster.count) ?? [sourceRows.length, 0, 0, 0],
+      profileCols,
+      profile: officialRun?.clusters.map((cluster) =>
+        profileCols.map((column) => cluster.profile.find((item) => item.column === column)?.standardizedDifference ?? 0)
+      ) ?? [profileCols.map(() => 0)],
+    };
+  }, [officialRun, sourceRows, effectiveFeatures]);
   const idToRow = useMemo(() => new Map(analysis.rowsWithCluster.map((item) => [item.id, item.row])), [analysis.rowsWithCluster]);
 
   const runOfficialProjection = async () => {
@@ -236,25 +203,24 @@ export default function CaseStudiesValidation() {
     setProjectionProgress(0);
     setProjectionError(null);
     try {
-      const result =
-        projectionMethod === "pca"
-          ? runPCA(sourceRows, effectiveFeatures, "mean")
-          : projectionMethod === "umap"
-            ? await runUMAP(sourceRows, effectiveFeatures, { nNeighbors: 15, minDist: 0.1, spread: 1 }, "mean")
-            : await runTSNE(
-                sourceRows,
-                effectiveFeatures,
-                { perplexity: 30, iterations: 500, learningRate: 200 },
-                "mean",
-                (pct) => setProjectionProgress(pct)
-              );
+      const params: Record<string, number> = projectionMethod === "umap"
+        ? { nNeighbors: 15, minDist: 0.1, spread: 1 }
+        : { perplexity: 30, iterations: 500, learningRate: 200 };
+      const result = await runProjectionInWorker(
+        projectionMethod, sourceRows, effectiveFeatures, "median", params, setProjectionProgress
+      );
 
       const points = result.coordinates.map((coord) => ({
         record_id: coord.record_id,
         x: coord.x,
         y: coord.y,
       }));
-      const clusters = runKMeans(points, 4);
+      if (!officialRun) throw new Error("La ejecucion oficial aun se esta preparando.");
+      const clusters = summarizeAssignedClusters(points, officialRun.labels, {
+        clusters: 4,
+        seed: officialRun.config.seed,
+        space: "original-standardized",
+      });
       setProjection({
         method: projectionMethod,
         coordinates: result.coordinates,
@@ -306,6 +272,13 @@ export default function CaseStudiesValidation() {
     font: { size: 10 },
     hovermode: "closest" as const,
   };
+  const caseClusterLabel = [null, 2, 3, 0][activeCase];
+  const caseCluster = caseClusterLabel === null ? null : officialRun?.clusters[caseClusterLabel] ?? null;
+  const caseReason = activeCase === 0
+    ? "Se eligio porque la diferencia entre fuentes condiciona la fuerza de toda interpretacion posterior."
+    : caseCluster
+      ? `Se eligio C${caseCluster.label} (${caseCluster.count} participantes) porque obtuvo el mayor puntaje para el perfil ${caseCluster.name.toLowerCase()}. Sus diferencias mas visibles incluyen ${caseCluster.topVariables.slice(0, 3).map((item) => `${item.column} (${item.standardizedDifference.toFixed(2)}σ)`).join(", ")}.`
+      : "La ejecucion oficial se esta preparando.";
 
   return (
     <div className="space-y-4">
@@ -369,12 +342,27 @@ export default function CaseStudiesValidation() {
             )}
           </div>
         </div>
+        {officialRun ? (
+          <div className="border border-emerald-200 bg-emerald-50 rounded p-3 text-xs text-emerald-800">
+            <div className="font-semibold">Ejecucion oficial compartida activa</div>
+            <div className="mt-1">
+              {officialRun.dataset.rows} participantes · {officialRun.config.features.length} variables · mediana · estandarizacion · K-means en espacio original · k=4 · semilla {officialRun.config.seed}.
+            </div>
+            <div className="mt-1">
+              {officialRun.clusters.map((cluster) => `C${cluster.label} ${cluster.name}: ${cluster.count}`).join(" · ")}
+            </div>
+          </div>
+        ) : (
+          <div className="border border-yellow-200 bg-yellow-50 rounded p-3 text-xs text-yellow-800">
+            Preparando la ejecucion oficial compartida...
+          </div>
+        )}
         <div className="border border-blue-100 bg-blue-50 rounded p-3 space-y-3">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
             <div>
               <div className="text-xs font-semibold text-blue-800">Grafico igual al modulo PCA / t-SNE / UMAP</div>
               <div className="text-[11px] text-blue-700 mt-1">
-                Usa el mismo vector activo, imputacion por media, los mismos parametros por defecto y K-means sobre el espacio 2D.
+                Usa el mismo vector, imputacion por mediana y las mismas etiquetas oficiales. PCA, UMAP o t-SNE solo cambian el mapa donde se muestran los perfiles.
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -393,7 +381,7 @@ export default function CaseStudiesValidation() {
               ))}
               <button
                 onClick={runOfficialProjection}
-                disabled={projectionRunning || effectiveFeatures.length < 2}
+                disabled={projectionRunning || effectiveFeatures.length < 2 || !officialRun}
                 className="px-3 py-1.5 text-xs rounded bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {projectionRunning ? `Calculando ${projectionMethod.toUpperCase()} ${projectionProgress}%` : "Generar grafico oficial"}
@@ -413,13 +401,13 @@ export default function CaseStudiesValidation() {
                   return {
                     type: "scattergl",
                     mode: "markers",
-                    name: `Cluster ${cluster.label + 1} (${cluster.count})`,
+                    name: `C${cluster.label} ${officialRun?.clusters[cluster.label]?.name ?? ""} (${cluster.count})`,
                     x: coords.map((coord) => coord.x),
                     y: coords.map((coord) => coord.y),
                     customdata: coords.map((coord) => String(coord.record_id)),
                     text: coords.map((coord) => {
                       const row = idToRow.get(String(coord.record_id));
-                      return `ID: ${coord.record_id}<br>cluster: ${cluster.label + 1}<br>gdt_total: ${row ? num(row, "gdt_total") : "-"}<br>promis_total: ${row ? num(row, "promis_total") : "-"}`;
+                      return `ID: ${coord.record_id}<br>cluster: C${cluster.label}<br>gdt_total: ${row ? num(row, "gdt_total") : "-"}<br>promis_total: ${row ? num(row, "promis_total") : "-"}`;
                     }),
                     hovertemplate: "%{text}<extra></extra>",
                     marker: {
@@ -436,7 +424,7 @@ export default function CaseStudiesValidation() {
                     text:
                       projection.method === "pca" && projection.metadata.explainedVariance
                         ? `PCA oficial - CP1+CP2 ${((projection.metadata.explainedVariance[0] + projection.metadata.explainedVariance[1]) * 100).toFixed(1)}%`
-                        : `${projection.method.toUpperCase()} oficial con K-means 2D`,
+                        : `${projection.method.toUpperCase()} con perfiles del espacio original`,
                     font: { size: 12 },
                   },
                   xaxis: { title: { text: `${projection.method.toUpperCase()} 1` }, zeroline: false },
@@ -521,8 +509,59 @@ export default function CaseStudiesValidation() {
         </section>
       )}
 
+      <section className="bg-white border-2 border-orange-200 rounded p-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-800">Reproducir un grafico de validacion</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Selecciona un caso para ver exactamente que columnas entran, como se transforman y que grafico se genera.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
+          {CASES.map((item, index) => (
+            <button key={item.title} onClick={() => setActiveCase(index)} className={`text-left p-3 rounded border text-xs ${activeCase === index ? "bg-orange-500 text-white border-orange-500" : "bg-white text-gray-600 border-gray-200 hover:border-orange-300"}`}>
+              <span className="font-semibold">Caso {index + 1}</span>
+              <span className="block mt-1 opacity-90">{item.title.replace(/^Caso \d+: /, "")}</span>
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 text-xs">
+          <ProvenanceStep number="1" title="Columnas de entrada" text={activeCase === 1 ? `${caseX}, ${caseY}, cluster` : CASES[activeCase].variables} mono />
+          <ProvenanceStep number="2" title="Transformacion" text={CASES[activeCase].transformation} />
+          <ProvenanceStep number="3" title="Grafico generado" text={CASES[activeCase].output} />
+          <ProvenanceStep number="4" title="Vista que confirma" text={CASES[activeCase].confirmation} />
+        </div>
+        <div className="border border-violet-200 bg-violet-50 rounded p-3 text-xs text-violet-800">
+          <div className="font-semibold">Por que se convirtio en caso de estudio</div>
+          <div className="mt-1 leading-relaxed">{caseReason}</div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {activeCase === 1 && (
+            <button onClick={() => openBivariate(caseX, caseY, "official_cluster")} className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">
+              Abrir estas variables en Bivariado
+            </button>
+          )}
+          {activeCase === 2 && (
+            <button onClick={() => openProfiling("promis_total")} className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">
+              Revisar PROMIS en Profiling
+            </button>
+          )}
+          <button onClick={() => setActiveTab("filtros")} className="px-3 py-1.5 text-xs rounded border border-gray-200 text-gray-700 hover:border-orange-300">
+            Controlar con Filtros
+          </button>
+        </div>
+        {activeCase === 1 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 border border-blue-100 bg-blue-50 rounded p-3">
+            <VariableControl label="Variable del eje X" value={caseX} options={availableNumeric} onChange={setCaseX} />
+            <VariableControl label="Variable del eje Y" value={caseY} options={availableNumeric} onChange={setCaseY} />
+            <p className="md:col-span-2 text-[11px] text-blue-700">
+              Formula visible: X = log(1 + {caseX}), Y = log(1 + {caseY}), color = cluster calculado desde el vector activo.
+            </p>
+          </div>
+        )}
+      </section>
+
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <ValidationCard item={CASES[0]}>
+        {activeCase === 0 && <ValidationCard item={CASES[0]}>
           <Plot
             data={[
               {
@@ -544,9 +583,9 @@ export default function CaseStudiesValidation() {
             config={{ displayModeBar: true, responsive: true, modeBarButtonsToRemove: ["toImage"] }}
             style={{ width: "100%" }}
           />
-        </ValidationCard>
+        </ValidationCard>}
 
-        <ValidationCard item={CASES[1]}>
+        {activeCase === 1 && <ValidationCard item={CASES[1]}>
           <Plot
             data={Array.from({ length: 4 }, (_, cluster) => {
               const points = analysis.rowsWithCluster.filter((item) => item.cluster === cluster);
@@ -554,12 +593,12 @@ export default function CaseStudiesValidation() {
                 type: "scattergl",
                 mode: "markers",
                 name: `C${cluster} (${points.length})`,
-                x: points.map((item) => Math.log1p(Math.max(0, num(item.row, "telem_total_sessions") || 0))),
-                y: points.map((item) => Math.log1p(Math.max(0, num(item.row, "telem_nocturnal_sessions") || 0))),
+                x: points.map((item) => Math.log1p(Math.max(0, num(item.row, caseX) || 0))),
+                y: points.map((item) => Math.log1p(Math.max(0, num(item.row, caseY) || 0))),
                 customdata: points.map((item) => item.id),
                 text: points.map((item) => {
                   const row = item.row;
-                  return `ID: ${item.id}<br>Cluster: C${cluster}<br>Sesiones: ${num(row, "telem_total_sessions") || 0}<br>Nocturnas: ${num(row, "telem_nocturnal_sessions") || 0}`;
+                  return `ID: ${item.id}<br>Cluster: C${cluster}<br>${caseX}: ${num(row, caseX) || 0}<br>${caseY}: ${num(row, caseY) || 0}`;
                 }),
                 hovertemplate: "%{text}<extra></extra>",
                 marker: { size: 6, opacity: 0.65, color: CLUSTER_COLORS[cluster] },
@@ -568,9 +607,9 @@ export default function CaseStudiesValidation() {
             layout={{
               ...plotLayout,
               height: 380,
-              title: { text: "Sesiones totales vs. sesiones nocturnas", font: { size: 12 } },
-              xaxis: { title: { text: "log(1 + sesiones totales)" } },
-              yaxis: { title: { text: "log(1 + sesiones nocturnas)" } },
+              title: { text: `${caseX} vs. ${caseY}`, font: { size: 12 } },
+              xaxis: { title: { text: `log(1 + ${caseX})` } },
+              yaxis: { title: { text: `log(1 + ${caseY})` } },
               dragmode: "lasso",
             }}
             config={{ displayModeBar: true, responsive: true, modeBarButtonsToRemove: ["toImage"] }}
@@ -584,18 +623,23 @@ export default function CaseStudiesValidation() {
               if (ids.length) selectIds(ids);
             }}
           />
-        </ValidationCard>
+        </ValidationCard>}
 
-        <ValidationCard item={CASES[2]}>
+        {activeCase === 2 && <ValidationCard item={CASES[2]}>
           <Plot
-            data={analysis.profile.map((values, cluster) => ({
-              type: "bar",
-              name: `C${cluster} (${analysis.clusterCounts[cluster]})`,
-              x: analysis.profileCols,
-              y: values,
-              marker: { color: CLUSTER_COLORS[cluster] },
-              hovertemplate: "Perfil %{fullData.name}<br>%{x}: %{y:.2f}σ<extra></extra>",
-            }))}
+            data={analysis.profile.map((values, cluster) => {
+              const selected = analysis.profileCols
+                .map((column, index) => ({ column, value: values[index] }))
+                .filter((item) => WELLBEING_CASE_VARIABLES.includes(item.column));
+              return {
+                type: "bar",
+                name: `C${cluster} (${analysis.clusterCounts[cluster]})`,
+                x: selected.map((item) => item.column),
+                y: selected.map((item) => item.value),
+                marker: { color: CLUSTER_COLORS[cluster] },
+                hovertemplate: "Perfil %{fullData.name}<br>%{x}: %{y:.2f}σ<extra></extra>",
+              };
+            })}
             layout={{
               ...plotLayout,
               height: 380,
@@ -606,9 +650,9 @@ export default function CaseStudiesValidation() {
             config={{ displayModeBar: true, responsive: true, modeBarButtonsToRemove: ["toImage"] }}
             style={{ width: "100%" }}
           />
-        </ValidationCard>
+        </ValidationCard>}
 
-        <ValidationCard item={CASES[3]}>
+        {activeCase === 3 && <ValidationCard item={CASES[3]}>
           <Plot
             data={Array.from({ length: 4 }, (_, cluster) => {
               const members = analysis.rowsWithCluster.filter((item) => item.cluster === cluster);
@@ -633,16 +677,35 @@ export default function CaseStudiesValidation() {
             config={{ displayModeBar: true, responsive: true, modeBarButtonsToRemove: ["toImage"] }}
             style={{ width: "100%" }}
           />
-        </ValidationCard>
+        </ValidationCard>}
       </div>
     </div>
   );
 }
 
+function ProvenanceStep({ number, title, text, mono = false }: { number: string; title: string; text: string; mono?: boolean }) {
+  return <div className="border border-orange-100 bg-orange-50 rounded p-3">
+    <div className="flex items-center gap-2 font-semibold text-orange-800">
+      <span className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px]">{number}</span>
+      {title}
+    </div>
+    <div className={`mt-2 text-orange-700 leading-relaxed ${mono ? "font-mono text-[11px]" : ""}`}>{text}</div>
+  </div>;
+}
+
+function VariableControl({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  return <label className="text-xs text-blue-800">
+    <span className="block font-semibold mb-1">{label}</span>
+    <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full border border-blue-200 bg-white rounded px-2 py-1.5 font-mono text-xs">
+      {options.map((option) => <option key={option} value={option}>{option}</option>)}
+    </select>
+  </label>;
+}
+
 function ValidationCard({ item, children }: { item: (typeof CASES)[number]; children: React.ReactNode }) {
   const Icon = item.icon;
   return (
-    <section className="bg-white border border-gray-200 rounded p-4 space-y-3">
+    <section className="bg-white border border-gray-200 rounded p-4 space-y-3 xl:col-span-2">
       <div className="flex items-start gap-3">
         <div className="w-8 h-8 rounded bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
           <Icon size={16} />
@@ -653,12 +716,15 @@ function ValidationCard({ item, children }: { item: (typeof CASES)[number]; chil
           <div className="text-[11px] text-orange-700 bg-orange-50 border border-orange-100 inline-flex rounded px-1.5 py-0.5 mt-1">
             Tareas: {item.tasks}
           </div>
+          <div className="text-[11px] text-violet-700 mt-1">
+            Abstraccion Why: {item.abstraction}
+          </div>
         </div>
       </div>
 
       <div className="border border-gray-100 rounded overflow-hidden bg-gray-50">{children}</div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
         <div className="border border-gray-100 rounded p-2">
           <div className="font-semibold text-gray-600 mb-1">Variables</div>
           <div className="text-gray-500 font-mono leading-relaxed">{item.variables}</div>
@@ -670,6 +736,14 @@ function ValidationCard({ item, children }: { item: (typeof CASES)[number]; chil
         <div className="border border-emerald-100 bg-emerald-50 rounded p-2">
           <div className="font-semibold text-emerald-700 mb-1">Validacion</div>
           <div className="text-emerald-700 leading-relaxed">{item.validation}</div>
+        </div>
+        <div className="border border-violet-100 bg-violet-50 rounded p-2">
+          <div className="font-semibold text-violet-700 mb-1">Conocimiento obtenido</div>
+          <div className="text-violet-700 leading-relaxed">{item.knowledge}</div>
+        </div>
+        <div className="border border-amber-100 bg-amber-50 rounded p-2">
+          <div className="font-semibold text-amber-700 mb-1">Limite de la interpretacion</div>
+          <div className="text-amber-700 leading-relaxed">{item.caution}</div>
         </div>
       </div>
     </section>

@@ -2,15 +2,17 @@
 import { useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useStore } from "@/lib/store";
-import { runPCA, runUMAP, runTSNE } from "@/lib/dimensionality-utils";
 import { rowsToCSV, downloadCSV, parseNumericValue } from "@/lib/data-utils";
-import { runDBSCAN, runHierarchicalSingleLink, runKMeans, type ClusterResult } from "@/lib/clustering-utils";
+import { summarizeAssignedClusters, type ClusterResult } from "@/lib/clustering-utils";
+import { createOpenPlayAnalysisRun } from "@/lib/openplay-analysis";
+import { runClusteringInWorker, runProjectionInWorker } from "@/lib/analytics-worker-client";
 import { Activity, Download, AlertTriangle, MousePointer2, X } from "lucide-react";
+import ClusterRobustnessPanel from "@/components/ClusterRobustnessPanel";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
 type Method = "pca" | "umap" | "tsne";
-type ImputeMethod = "mean" | "zero" | "drop";
+type ImputeMethod = "mean" | "median" | "zero" | "drop";
 type ClusteringMethod = "kmeans" | "hierarchical-single" | "dbscan";
 
 const COLOR_VARS = [
@@ -26,14 +28,14 @@ const CLUSTER_COLORS = [
 ];
 
 export default function DimensionalityReduction() {
-  const { filteredRows, selectedVariables, columnStats, addDimResult, dimResults, setSelectedParticipant, setSelectedRecordIds, clearSelectedRecordIds, rows } = useStore();
+  const { filteredRows, selectedVariables, columnStats, addDimResult, dimResults, setSelectedParticipant, setSelectedRecordIds, clearSelectedRecordIds, rows, analysisRun, setAnalysisRun } = useStore();
 
   const [method, setMethod] = useState<Method>("pca");
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [colorVar, setColorVar] = useState("gdt_total");
-  const [impute, setImpute] = useState<ImputeMethod>("mean");
+  const [impute, setImpute] = useState<ImputeMethod>("median");
 
   const [nNeighbors, setNNeighbors] = useState(15);
   const [minDist, setMinDist] = useState(0.1);
@@ -153,7 +155,7 @@ export default function DimensionalityReduction() {
 
     try {
       if (method === "pca") {
-        const result = runPCA(filteredRows, numericSelected, impute);
+        const result = await runProjectionInWorker("pca", filteredRows, numericSelected, impute, {});
         addDimResult({ method: "pca", coordinates: result.coordinates, metadata: result.metadata });
         setSelectedIds([]);
         setClusterResult(null);
@@ -161,18 +163,16 @@ export default function DimensionalityReduction() {
         setProgress(100);
       } else if (method === "umap") {
         setProgress(5);
-        const result = await runUMAP(filteredRows, numericSelected, { nNeighbors, minDist, spread }, impute);
+        const result = await runProjectionInWorker("umap", filteredRows, numericSelected, impute, { nNeighbors, minDist, spread });
         addDimResult({ method: "umap", coordinates: result.coordinates, metadata: result.metadata });
         setSelectedIds([]);
         setClusterResult(null);
         setCaseNote("");
         setProgress(100);
       } else {
-        const result = await runTSNE(
-          filteredRows, numericSelected,
-          { perplexity, iterations, learningRate },
-          impute,
-          (pct) => setProgress(pct)
+        const result = await runProjectionInWorker(
+          "tsne", filteredRows, numericSelected, impute,
+          { perplexity, iterations, learningRate }, setProgress
         );
         addDimResult({ method: "tsne", coordinates: result.coordinates, metadata: result.metadata });
         setSelectedIds([]);
@@ -204,7 +204,7 @@ export default function DimensionalityReduction() {
 
   const fmtNum = (n: number, dec = 3) => Number.isFinite(n) ? n.toFixed(dec) : "-";
 
-  const runClustering = () => {
+  const runClustering = async () => {
     if (!currentResult) return;
     setClusterError(null);
     try {
@@ -213,12 +213,19 @@ export default function DimensionalityReduction() {
         x: coord.x,
         y: coord.y,
       }));
-      const result =
-        clusteringMethod === "kmeans"
-          ? runKMeans(points, clusterCount)
-          : clusteringMethod === "hierarchical-single"
-            ? runHierarchicalSingleLink(points, clusterCount)
-            : runDBSCAN(points, dbscanEps, dbscanMinPts);
+      const result = clusteringMethod === "kmeans"
+        ? (() => {
+            const official = createOpenPlayAnalysisRun(filteredRows, numericSelected, { seed: 2026, iterations: 100 });
+            setAnalysisRun(official);
+            return summarizeAssignedClusters(points, official.labels, {
+              clusters: 4,
+              seed: official.config.seed,
+              space: "original-standardized",
+            });
+          })()
+        : await runClusteringInWorker(clusteringMethod, points, {
+            clusterCount, eps: dbscanEps, minPts: dbscanMinPts, seed: 42,
+          });
       setClusterResult(result);
     } catch (e) {
       setClusterError(e instanceof Error ? e.message : String(e));
@@ -410,45 +417,14 @@ export default function DimensionalityReduction() {
 
   const selectCluster = () => {
     const items = getCoordinateRows();
-    if (items.length < 20) return;
-    const k = 4;
-    let centers = [0.1, 0.35, 0.65, 0.9].map((q) => {
-      const sorted = [...items].sort((a, b) => a.x - b.x);
-      return { x: sorted[Math.floor((sorted.length - 1) * q)].x, y: sorted[Math.floor((sorted.length - 1) * q)].y };
-    });
-    let labels = new Array(items.length).fill(0);
-    for (let iter = 0; iter < 40; iter++) {
-      labels = items.map((item) => {
-        let best = 0;
-        let bestD = Infinity;
-        centers.forEach((center, idx) => {
-          const d = (item.x - center.x) ** 2 + (item.y - center.y) ** 2;
-          if (d < bestD) { bestD = d; best = idx; }
-        });
-        return best;
-      });
-      centers = centers.map((center, idx) => {
-        const members = items.filter((_, itemIdx) => labels[itemIdx] === idx);
-        if (!members.length) return center;
-        return {
-          x: members.reduce((sum, item) => sum + item.x, 0) / members.length,
-          y: members.reduce((sum, item) => sum + item.y, 0) / members.length,
-        };
-      });
-    }
-    const clusters = centers.map((center, idx) => {
-      const members = items.filter((_, itemIdx) => labels[itemIdx] === idx);
-      const compactness = members.length
-        ? members.reduce((sum, item) => sum + Math.hypot(item.x - center.x, item.y - center.y), 0) / members.length
-        : Infinity;
-      return { idx, members, compactness };
-    });
-    const chosen = clusters
-      .filter((cluster) => cluster.members.length >= 20)
-      .sort((a, b) => b.members.length / Math.max(b.compactness, 0.001) - a.members.length / Math.max(a.compactness, 0.001))[0];
+    if (items.length < 20 || !clusterResult) return;
+    const chosen = clusterResult.clusters
+      .filter((cluster) => cluster.label !== -1 && cluster.count >= 20)
+      .sort((a, b) => b.count - a.count)[0];
     if (!chosen) return;
-    setSelectedIds(chosen.members.map((item) => item.id));
-    setCaseNote(`Caso 4 automatico: cluster compacto con ${chosen.members.length} participantes.`);
+    const members = items.filter((item) => clusterResult.labels[item.id] === chosen.label);
+    setSelectedIds(members.map((item) => item.id));
+    setCaseNote(`Caso 4 automatico: cluster calculado con ${members.length} participantes.`);
   };
 
   // Construir datos del scatter con tipos correctos para Plotly
@@ -637,6 +613,7 @@ export default function DimensionalityReduction() {
             <select value={impute} onChange={(e) => setImpute(e.target.value as ImputeMethod)}
               className="w-full border border-gray-200 rounded px-2 py-1 mt-0.5">
               <option value="mean">Media de columna</option>
+              <option value="median">Mediana de columna (oficial)</option>
               <option value="zero">Cero</option>
               <option value="drop">Eliminar fila</option>
             </select>
@@ -800,9 +777,9 @@ export default function DimensionalityReduction() {
         {currentResult && (
           <div className="border border-gray-100 rounded p-3 space-y-3">
             <div>
-              <div className="text-sm font-semibold text-gray-700">Clustering sobre el espacio 2D</div>
+              <div className="text-sm font-semibold text-gray-700">Perfiles oficiales y comparación en 2D</div>
               <p className="text-xs text-gray-400 mt-0.5">
-                Agrupa las coordenadas actuales de {method.toUpperCase()} y colorea los puntos por grupo. Usa K-means para perfiles comparables y DBSCAN para detectar densidad/ruido.
+                K-means calcula los perfiles sobre el vector original estandarizado y usa {method.toUpperCase()} solo como mapa visual. Jerarquico y DBSCAN se conservan como comparaciones sobre la proyeccion 2D.
               </p>
             </div>
 
@@ -820,7 +797,14 @@ export default function DimensionalityReduction() {
                 </select>
               </div>
 
-              {clusteringMethod === "kmeans" || clusteringMethod === "hierarchical-single" ? (
+              {clusteringMethod === "kmeans" ? (
+                <div>
+                  <label className="text-gray-500">Numero de clusters</label>
+                  <div className="w-full border border-emerald-200 bg-emerald-50 text-emerald-700 rounded px-2 py-1 mt-0.5">
+                    4 perfiles oficiales
+                  </div>
+                </div>
+              ) : clusteringMethod === "hierarchical-single" ? (
                 <div>
                   <label className="text-gray-500">Numero de clusters</label>
                   <input
@@ -883,6 +867,11 @@ export default function DimensionalityReduction() {
 
             {clusterResult && (
               <div className="space-y-2">
+                {clusteringMethod === "kmeans" && analysisRun && (
+                  <div className="text-xs bg-emerald-50 border border-emerald-200 rounded px-2 py-1 text-emerald-800">
+                    Ejecucion oficial compartida: <b>{analysisRun.dataset.rows}</b> participantes · <b>{analysisRun.config.features.length}</b> variables · imputacion por mediana · estandarizacion · semilla {analysisRun.config.seed}. Validacion reutiliza estas mismas etiquetas.
+                  </div>
+                )}
                 <div className="text-xs bg-blue-50 border border-blue-100 rounded px-2 py-1 text-blue-700">
                   Metodo: <b>{clusterResult.method === "kmeans" ? "K-means" : clusterResult.method === "hierarchical-single" ? "MST / single-link aproximado" : "DBSCAN"}</b>
                   {" "}· Grupos detectados: <b>{clusterResult.clusters.filter((c) => c.label !== -1).length}</b>
@@ -917,7 +906,7 @@ export default function DimensionalityReduction() {
                       </div>
                     </div>
                     <div className="px-2 py-1 text-xs text-gray-500 border-t border-gray-100">
-                      {clusterMetricSummary.interpretation} Silhouette se calcula sobre una muestra deterministica de {clusterMetricSummary.m.silhouetteSampleSize} puntos sin ruido.
+                      {clusterMetricSummary.interpretation} Estas metricas describen como se ven en la proyeccion 2D los perfiles calculados en el espacio original. Silhouette usa una muestra deterministica de {clusterMetricSummary.m.silhouetteSampleSize} puntos sin ruido.
                     </div>
                   </div>
                 )}
@@ -1292,6 +1281,15 @@ export default function DimensionalityReduction() {
           </div>
         )}
       </div>
+      {clusteringMethod === "kmeans" && (
+        <ClusterRobustnessPanel
+          rows={filteredRows}
+          variables={numericSelected}
+          impute={impute}
+          clusterCount={clusterCount}
+          projected={clusterResult}
+        />
+      )}
     </div>
   );
 }
