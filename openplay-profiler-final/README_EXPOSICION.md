@@ -46,12 +46,12 @@ cargado y el vector preparado antes de iniciar.
 Usa solamente este recorrido:
 
 ```text
-Datos → Vector → PCA / t-SNE / UMAP → Validación
+Datos → Vector → PCA / t-SNE / UMAP → Bivariado → Encuestas → Datos → Validación
 ```
 
-No abras Profiling, Encuestas, Bivariado o Filtros durante los ocho minutos, salvo
-que la profesora formule una pregunta. Esas vistas se mencionan como apoyo y se
-reservan para las preguntas posteriores.
+La idea de este recorrido es mostrar primero cómo se generan los perfiles y después
+cómo se obtienen las evidencias en vistas normales. **Validación se abre al final**:
+no crea los clusters, sino que resume y contrasta la ejecución ya realizada.
 
 ---
 
@@ -171,28 +171,17 @@ casos atípicos. PCA y K-means son el método, no la tarea.
 
 ### 3:05–4:35 — Caso principal 1: intensidad total y nocturna
 
-**Dashboard:** abre **Validación**.
+**Dashboard:** abre **Bivariado** y pulsa **Generar Caso 2: intensidad nocturna**.
+Comprueba que aparezcan:
 
-1. En **Método usado para validar**, comprueba que esté activo
-   **Vector recomendado**.
-2. Explica brevemente que los perfiles usan imputación, estandarización y K-means
-   sobre el vector original.
-3. Baja hasta **Reproducir un gráfico de validación**.
-4. Pulsa **Caso 2: intensidad nocturna**.
-5. Señala en orden las cuatro tarjetas:
+1. eje X: `telem_total_sessions`;
+2. eje Y: `telem_nocturnal_sessions`;
+3. color: **perfil oficial** o `official_cluster`;
+4. escala: `log(1+x)`.
 
-   - Columnas de entrada;
-   - Transformación;
-   - Gráfico generado;
-   - Vista que confirma.
-
-6. En los selectores comprueba:
-
-   - eje X: `telem_total_sessions`;
-   - eje Y: `telem_nocturnal_sessions`.
-
-7. Señala la zona correspondiente a C2. Puedes pasar el cursor sobre un punto, pero
-   no abras muchos participantes.
+El gráfico usa las etiquetas que acabas de generar con K-means. Señala la zona
+correspondiente a C2. Puedes pasar el cursor sobre un punto, pero no abras muchos
+participantes.
 
 **Di:**
 
@@ -218,9 +207,10 @@ explicación.
 
 ### 4:35–5:55 — Caso principal 2: bienestar, riesgo y uso registrado
 
-**Dashboard:** en **Reproducir un gráfico de validación**, pulsa
-**Caso 3: bienestar, riesgo y uso registrado**. Señala primero las columnas de
-entrada y después las barras agrupadas.
+**Dashboard:** abre **Encuestas**. En la parte superior aparecerá
+**Caso 3 generado: bienestar, riesgo y uso registrado**. Señala la tarjeta de la
+ejecución activa y después las barras agrupadas. Este gráfico se obtiene aquí desde
+los perfiles ya calculados; no depende de abrir Validación.
 
 **Di:**
 
@@ -247,8 +237,9 @@ bienestar”. Di “presenta valores mayores o menores en las escalas registrada
 
 ### 5:55–6:45 — Control de observabilidad: perfil multiplataforma
 
-**Dashboard:** pulsa **Caso 4: perfil multiplataforma**. Señala las barras de
-cobertura por cluster.
+**Dashboard:** regresa a **Datos**. Señala **Caso 4 generado: cobertura por perfil**
+y las barras de cobertura por cluster. La cobertura general se obtiene antes del
+clustering; esta segunda comparación se genera después usando las etiquetas C0–C3.
 
 **Di:**
 
@@ -265,8 +256,10 @@ grupos.
 
 ### 6:45–7:25 — Tareas, vistas y validación
 
-**Dashboard:** permanece en Validación. Señala las tarjetas de procedencia y el
-bloque de patrón, validación, conocimiento y límite.
+**Dashboard:** abre **Validación** por primera vez. Señala que reconoce la ejecución
+oficial compartida y luego las tarjetas de procedencia y el bloque de patrón,
+validación, conocimiento y límite. Aclara que esta pestaña no volvió a ejecutar
+K-means: está comprobando los resultados generados en las vistas anteriores.
 
 **Di:**
 
@@ -310,10 +303,10 @@ Detente aquí. No agregues nuevas conclusiones después del cierre.
 | 0:00 | Datos | Señalar participantes, variables y cobertura |
 | 1:25 | Vector | Señalar 19 variables, evaluación y correlaciones |
 | 2:05 | PCA / t-SNE / UMAP | PCA → Ejecutar PCA → K-means, 4 → Agrupar y colorear |
-| 3:05 | Validación | Vector recomendado → Caso 2 |
-| 4:35 | Validación | Caso 3 |
-| 5:55 | Validación | Caso 4 |
-| 6:45 | Validación | Señalar procedencia, conocimiento y límites |
+| 3:05 | Bivariado | Sesiones totales vs. nocturnas → color por perfil oficial |
+| 4:35 | Encuestas | Señalar comparación de bienestar/riesgo por perfil |
+| 5:55 | Datos | Señalar cobertura por perfil |
+| 6:45 | Validación | Confirmar ejecución previa y señalar procedencia y límites |
 
 ---
 
@@ -325,14 +318,16 @@ No permanezcas en silencio. Continúa con la explicación de PCA. Si después de
 segundos todavía no termina, di:
 
 > El cálculo se ejecuta en un Web Worker para no bloquear la interfaz. Para respetar
-> el tiempo continuaré con los casos de validación, que utilizan el mismo dataset.
+> el tiempo continuaré explicando las variables y el recorrido de comprobación.
 
-Después abre **Validación** y continúa con el Caso 2.
+No abras **Validación** sin haber generado K-means: ahora esa pestaña muestra
+correctamente que falta la ejecución oficial.
 
 ### Si no aparece el botón de agrupamiento
 
-Debes esperar a que PCA termine. Si no termina, omite el mapa coloreado y pasa a
-Validación. No reinicies la página durante la exposición.
+Debes esperar a que PCA termine. Si no termina, usa como respaldo las figuras del
+PDF y explica el recorrido; Validación no generará perfiles por su cuenta. No
+reinicies la página durante la exposición.
 
 ### Si un gráfico aparece vacío
 

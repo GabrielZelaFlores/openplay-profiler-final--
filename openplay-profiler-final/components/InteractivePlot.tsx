@@ -6,6 +6,7 @@ import { parseNumericValue, pearsonCorrelationFromRows } from "@/lib/data-utils"
 import { Filter, TrendingUp, X } from "lucide-react";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
+const CLUSTER_COLORS = ["#4f647f", "#9b4d5f", "#5f725c", "#9b6f45"];
 
 function VariableSelect({ label, value, onChange, cols }: {
   label: string; value: string; onChange: (value: string) => void; cols: string[];
@@ -26,6 +27,7 @@ export default function InteractivePlot() {
   const [yCol, setYCol] = useState("");
   const [colorCol, setColorCol] = useState("");
   const [showTrend, setShowTrend] = useState(false);
+  const [useLogScale, setUseLogScale] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -33,6 +35,9 @@ export default function InteractivePlot() {
     setXCol(bivariatePreset.x);
     setYCol(bivariatePreset.y);
     setColorCol(bivariatePreset.color);
+    setUseLogScale(
+      bivariatePreset.x === "telem_total_sessions" && bivariatePreset.y === "telem_nocturnal_sessions"
+    );
   }, [bivariatePreset]);
 
   const numericCols = useMemo(
@@ -99,6 +104,7 @@ export default function InteractivePlot() {
     const xVals: number[] = [];
     const yVals: number[] = [];
     const colorVals: number[] = [];
+    const clusterVals: number[] = [];
     const texts: string[] = [];
     const customIds: string[] = [];
 
@@ -106,31 +112,45 @@ export default function InteractivePlot() {
       const x = parseNumericValue(row[xCol]);
       const y = parseNumericValue(row[yCol]);
       if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-      xVals.push(x);
-      yVals.push(y);
+      xVals.push(useLogScale ? Math.log1p(Math.max(0, x)) : x);
+      yVals.push(useLogScale ? Math.log1p(Math.max(0, y)) : y);
       customIds.push(String(row["record_id"]));
       const cv = colorCol === "official_cluster"
         ? analysisRun?.labels[String(row["record_id"])] ?? 0
         : parseNumericValue(row[colorCol]);
       colorVals.push(Number.isFinite(cv) ? cv : 0);
+      clusterVals.push(Number.isFinite(cv) ? cv : 0);
       texts.push(`ID: ${row["record_id"]}<br>${xCol}: ${x.toFixed(2)}<br>${yCol}: ${y.toFixed(2)}`);
     }
 
-    const scatter = {
-      type: "scatter" as const,
-      mode: "markers" as const,
-      x: xVals,
-      y: yVals,
-      marker: colorCol
-        ? { color: colorVals, colorscale: "Viridis" as const, showscale: true, size: 6, opacity: 0.7 }
-        : { color: "#5f725c", size: 6, opacity: 0.7, colorscale: undefined as never, showscale: false },
-      text: texts,
-      hovertemplate: "%{text}<extra></extra>",
-      customdata: customIds,
-      name: "Participantes",
-    };
-
-    const result: import("plotly.js").Data[] = [scatter];
+    const result: import("plotly.js").Data[] = colorCol === "official_cluster"
+      ? [0, 1, 2, 3].map((cluster) => {
+          const indexes = clusterVals.map((value, index) => value === cluster ? index : -1).filter((index) => index >= 0);
+          return {
+            type: "scatter" as const,
+            mode: "markers" as const,
+            x: indexes.map((index) => xVals[index]),
+            y: indexes.map((index) => yVals[index]),
+            text: indexes.map((index) => texts[index]),
+            customdata: indexes.map((index) => customIds[index]),
+            marker: { color: CLUSTER_COLORS[cluster], size: 6, opacity: 0.68 },
+            hovertemplate: "%{text}<extra></extra>",
+            name: `C${cluster} (${indexes.length})`,
+          };
+        })
+      : [{
+          type: "scatter" as const,
+          mode: "markers" as const,
+          x: xVals,
+          y: yVals,
+          marker: colorCol
+            ? { color: colorVals, colorscale: "Viridis" as const, showscale: true, size: 6, opacity: 0.7 }
+            : { color: "#5f725c", size: 6, opacity: 0.7, colorscale: undefined as never, showscale: false },
+          text: texts,
+          hovertemplate: "%{text}<extra></extra>",
+          customdata: customIds,
+          name: "Participantes",
+        }];
 
     if (showTrend && xVals.length > 1) {
       const n = xVals.length;
@@ -161,7 +181,11 @@ export default function InteractivePlot() {
         const x = parseNumericValue(row[xCol]);
         const y = parseNumericValue(row[yCol]);
         if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-        return { id, x, y };
+        return {
+          id,
+          x: useLogScale ? Math.log1p(Math.max(0, x)) : x,
+          y: useLogScale ? Math.log1p(Math.max(0, y)) : y,
+        };
       })
       .filter((point): point is { id: string; x: number; y: number } => Boolean(point));
 
@@ -186,13 +210,33 @@ export default function InteractivePlot() {
     }
 
     return result;
-  }, [xCol, yCol, colorCol, filteredRows, showTrend, selectedIds, rowById, analysisRun]);
+  }, [xCol, yCol, colorCol, filteredRows, showTrend, selectedIds, rowById, analysisRun, useLogScale]);
 
   return (
     <div className="bg-white border border-gray-200 rounded p-4">
       <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
         <TrendingUp size={15} className="text-orange-500" /> Análisis bivariado
       </h2>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2 border border-blue-100 bg-blue-50 rounded p-3">
+        <button
+          disabled={!analysisRun}
+          onClick={() => {
+            setXCol("telem_total_sessions");
+            setYCol("telem_nocturnal_sessions");
+            setColorCol("official_cluster");
+            setUseLogScale(true);
+          }}
+          className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Generar Caso 2: intensidad nocturna
+        </button>
+        <span className="text-[11px] text-blue-700">
+          {analysisRun
+            ? "Usa las etiquetas K-means creadas previamente y aplica log(1+x) en ambos ejes."
+            : "Primero ejecuta PCA y K-means con 4 grupos para habilitar este caso."}
+        </span>
+      </div>
 
       <div className="grid grid-cols-2 gap-2 mb-3">
         <VariableSelect label="Eje X" value={xCol} onChange={setXCol} cols={numericCols} />
@@ -203,6 +247,13 @@ export default function InteractivePlot() {
           <button onClick={() => setShowTrend((t) => !t)}
             className={`px-3 py-1 rounded border text-xs ${showTrend ? "bg-orange-500 text-white border-orange-500" : "border-gray-200 text-gray-600"}`}>
             {showTrend ? "Activada" : "Desactivada"}
+          </button>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <label className="text-gray-500 w-14">Escala</label>
+          <button onClick={() => setUseLogScale((value) => !value)}
+            className={`px-3 py-1 rounded border text-xs ${useLogScale ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 text-gray-600"}`}>
+            {useLogScale ? "log(1+x)" : "Original"}
           </button>
         </div>
       </div>
@@ -226,8 +277,8 @@ export default function InteractivePlot() {
             margin: { t: 10, r: 20, b: 50, l: 60 },
             paper_bgcolor: "white",
             plot_bgcolor: "#fafafa",
-            xaxis: { title: { text: xCol, font: { size: 11 } } },
-            yaxis: { title: { text: yCol, font: { size: 11 } } },
+            xaxis: { title: { text: useLogScale ? `log(1 + ${xCol})` : xCol, font: { size: 11 } } },
+            yaxis: { title: { text: useLogScale ? `log(1 + ${yCol})` : yCol, font: { size: 11 } } },
             dragmode: "lasso",
             font: { size: 11 },
             legend: { orientation: "h", y: -0.15 },

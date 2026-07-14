@@ -1,14 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CheckCircle2, Layers, Moon, Network, ShieldCheck, X } from "lucide-react";
 import { useStore, type DataRow } from "@/lib/store";
 import { parseNumericValue } from "@/lib/data-utils";
 import { RECOMMENDED_PROJECT_VECTOR } from "@/lib/openplay-vector";
 import { summarizeAssignedClusters, type ClusterResult } from "@/lib/clustering-utils";
 import { runProjectionInWorker } from "@/lib/analytics-worker-client";
-import { analysisRunMatches, createOpenPlayAnalysisRun } from "@/lib/openplay-analysis";
+import { analysisRunMatches } from "@/lib/openplay-analysis";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
@@ -128,9 +128,7 @@ export default function CaseStudiesValidation() {
     clearSelectedRecordIds,
     selectedRecordIds,
     analysisRun,
-    setAnalysisRun,
     openBivariate,
-    openProfiling,
     setActiveTab,
   } = useStore();
   const sourceRows = filteredRows.length ? filteredRows : rows;
@@ -168,12 +166,6 @@ export default function CaseStudiesValidation() {
     : "Vector integral recomendado";
 
   const runIsCurrent = analysisRunMatches(analysisRun, sourceRows, effectiveFeatures);
-
-  useEffect(() => {
-    if (!runIsCurrent) {
-      setAnalysisRun(createOpenPlayAnalysisRun(sourceRows, effectiveFeatures, { seed: 2026, iterations: 100 }));
-    }
-  }, [runIsCurrent, sourceRows, effectiveFeatures, setAnalysisRun]);
 
   const officialRun = runIsCurrent ? analysisRun : null;
   const analysis = useMemo(() => {
@@ -279,6 +271,36 @@ export default function CaseStudiesValidation() {
     : caseCluster
       ? `Se eligio C${caseCluster.label} (${caseCluster.count} participantes) porque obtuvo el mayor puntaje para el perfil ${caseCluster.name.toLowerCase()}. Sus diferencias mas visibles incluyen ${caseCluster.topVariables.slice(0, 3).map((item) => `${item.column} (${item.standardizedDifference.toFixed(2)}σ)`).join(", ")}.`
       : "La ejecucion oficial se esta preparando.";
+
+  if (!officialRun) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-white border border-gray-200 rounded p-4">
+          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <Layers size={15} className="text-orange-500" /> Estudios de caso y validación
+          </h2>
+          <p className="text-xs text-gray-500 mt-1">
+            Validación resume y contrasta una ejecución existente; no genera perfiles automáticamente.
+          </p>
+        </div>
+        <section className="bg-amber-50 border border-amber-200 rounded p-5">
+          <h3 className="text-sm font-semibold text-amber-900">Falta generar la ejecución oficial</h3>
+          <p className="text-xs text-amber-800 mt-2 max-w-3xl leading-relaxed">
+            Primero selecciona el vector recomendado. Después abre PCA / t-SNE / UMAP, ejecuta PCA y pulsa
+            Agrupar y colorear con K-means y 4 grupos. Solo entonces esta pestaña podrá validar los mismos perfiles.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-4">
+            <button onClick={() => setActiveTab("vector")} className="px-3 py-1.5 text-xs rounded border border-amber-300 bg-white text-amber-900 hover:border-amber-500">
+              1. Ir a Vector
+            </button>
+            <button onClick={() => setActiveTab("reduccion")} className="px-3 py-1.5 text-xs rounded bg-amber-700 text-white hover:bg-amber-800">
+              2. Ir a PCA / t-SNE / UMAP
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -541,8 +563,13 @@ export default function CaseStudiesValidation() {
             </button>
           )}
           {activeCase === 2 && (
-            <button onClick={() => openProfiling("promis_total")} className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">
-              Revisar PROMIS en Profiling
+            <button onClick={() => setActiveTab("encuestas")} className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">
+              Abrir gráfico generado en Encuestas
+            </button>
+          )}
+          {activeCase === 3 && (
+            <button onClick={() => setActiveTab("datos")} className="px-3 py-1.5 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">
+              Abrir cobertura por perfil en Datos
             </button>
           )}
           <button onClick={() => setActiveTab("filtros")} className="px-3 py-1.5 text-xs rounded border border-gray-200 text-gray-700 hover:border-orange-300">

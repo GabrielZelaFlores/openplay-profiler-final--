@@ -16,6 +16,7 @@ import FiltersPanel from "@/components/FiltersPanel";
 import DimensionalityReduction from "@/components/DimensionalityReduction";
 import VisualRecommendations from "@/components/VisualRecommendations";
 import CaseStudiesValidation from "@/components/CaseStudiesValidation";
+import { ClusterCoverageEvidence, WellbeingRiskEvidence } from "@/components/OfficialProfileEvidence";
 import { Database, BarChart2, Filter, Activity, BookOpen, GitBranch, TrendingUp, ShieldCheck } from "lucide-react";
 
 const TABS: { id: DashboardTab; label: string; icon: React.ReactNode }[] = [
@@ -137,6 +138,7 @@ export default function HomePage() {
               <>
                 <ZipContentsPreview />
                 <DataMiningOverview />
+                <ClusterCoverageEvidence />
                 <DatasetPreview />
               </>
             )}
@@ -155,9 +157,12 @@ export default function HomePage() {
 
         {/* TAB: ENCUESTAS */}
         {hasData && activeTab === "encuestas" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <IndexDecomposition />
-            <CorrelationHeatmap />
+          <div className="space-y-4">
+            <WellbeingRiskEvidence />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <IndexDecomposition />
+              <CorrelationHeatmap />
+            </div>
           </div>
         )}
 

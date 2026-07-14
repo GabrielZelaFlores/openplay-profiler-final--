@@ -40,13 +40,13 @@ su interpretación.
 | Evaluación del vector | Cobertura, casos completos, tipos y pares correlacionados | T2: derivar un vector defendible | Indicadores, alertas y selección de variables | Justifica qué atributos entran a los modelos |
 | Panel de filtros | Variables numéricas, categóricas y selección global | T1/T4: comprobar un patrón en una submuestra | Rangos, categorías y limpieza de filtros | Filtrar es una interacción; la tarea es comprobar si el patrón persiste |
 | Proyección PCA/UMAP/t-SNE | Coordenadas 2D derivadas del vector | T3: explorar similitud y localizar separaciones | Nube de puntos, zoom, click, lazo y color | La forma localiza candidatos; debe volver a variables originales |
-| Clustering oficial | Etiqueta calculada en el vector original estandarizado | T3: resumir participantes en grupos candidatos | K-means, color compartido, selección y tablas | PCA, Bivariado y Validación reutilizan las mismas etiquetas; el color no define el perfil por sí solo |
+| Clustering oficial | Etiqueta calculada en el vector original estandarizado | T3: resumir participantes en grupos candidatos | K-means, color compartido, selección y tablas | PCA, Bivariado, Encuestas, Datos y Validación reutilizan las mismas etiquetas; el color no define el perfil por sí solo |
 | Perfil del cluster | Medias del grupo frente a la media global | T4: comparar características de grupos | Barras positivas y negativas en desviaciones estándar | Es la explicación del grupo en variables originales |
 | Robustez del clustering | Acuerdo entre semillas y espacio de cálculo | T4: comprobar estabilidad | Métricas y comparación de ejecuciones | Un grupo inestable debe interpretarse con cautela |
-| Validación: cobertura | Media de banderas `has_*` | T1/T4: resumir confiabilidad | Barras horizontales con porcentaje | Compara fuerza de evidencia entre fuentes |
-| Validación: nocturnidad | `telem_total_sessions`, `telem_nocturnal_sessions` y cluster | T4: comprobar la explicación de C2 | Dispersión con `log(1+x)`, color y selección | C2 combina intensidad total y actividad nocturna registrada |
-| Validación: bienestar/riesgo | PROMIS, WEMWBS, GDT, BANGS y uso del tiempo | T4: comparar C3 con otros perfiles | Barras agrupadas estandarizadas | Describe diferencias simultáneas; no diagnostica ni establece causa |
-| Validación: multiplataforma | Cobertura de fuentes dentro de cada grupo | T4: comprobar la explicación de C0 | Barras agrupadas por fuente y cluster | Distingue comportamiento de cantidad de datos disponibles |
+| Datos: cobertura general | Media de banderas `has_*` | T1/T4: resumir confiabilidad | Barras horizontales con porcentaje | Compara fuerza de evidencia entre fuentes |
+| Bivariado: nocturnidad | `telem_total_sessions`, `telem_nocturnal_sessions` y cluster | T4: comprobar la explicación de C2 | Dispersión con `log(1+x)`, color y selección | C2 combina intensidad total y actividad nocturna registrada |
+| Encuestas: bienestar/riesgo | PROMIS, WEMWBS, GDT, BANGS y uso del tiempo | T4: comparar C3 con otros perfiles | Barras agrupadas estandarizadas | Describe diferencias simultáneas; no diagnostica ni establece causa |
+| Datos: cobertura por perfil | Cobertura de fuentes dentro de cada grupo | T4: comprobar la explicación de C0 | Barras agrupadas por fuente y cluster | Distingue comportamiento de cantidad de datos disponibles |
 
 ## Qué estaba débil y ya se corrigió
 
@@ -55,9 +55,10 @@ Antes, T2 y T3 incluían métodos como “seleccionar el vector”, “proyectar
 Ahora las tareas expresan la meta de conocimiento y el informe incluye la
 clasificación completa de Munzner: acción de análisis, búsqueda, consulta y objetivo.
 
-La pestaña Validación también muestra una línea **Abstracción Why** en cada caso.
-Esto permite explicar primero qué se intenta conocer y después qué variables,
-transformación y gráfico se utilizaron.
+La pestaña Validación se abre después de generar las evidencias anteriores y muestra
+una línea **Abstracción Why** en cada caso. No crea automáticamente la ejecución de
+K-means. Esto permite explicar primero qué se intenta conocer y después qué
+variables, transformación y gráfico se utilizaron.
 
 ## Respuesta oral breve
 

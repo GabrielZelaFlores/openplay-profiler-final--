@@ -3,13 +3,14 @@
 No memoricen definiciones largas. Deben poder explicar estas ideas con sus propias
 palabras y señalarlas en la aplicación.
 
-## 1. ¿De dónde salen los gráficos de Validación?
+## 1. ¿De dónde salen los gráficos de los casos?
 
 No son imágenes pegadas. Se calculan desde `openplay_consolidated.csv`.
 
-La aplicación crea una sola ejecución oficial con 19 variables, imputación por
-mediana, estandarización y K-means sobre el vector original. Esa ejecución guarda
-la etiqueta de cada participante. PCA, Bivariado y Validación reutilizan las mismas
+La ejecución oficial no se crea al abrir Validación. Primero se seleccionan las 19
+variables del vector recomendado; después se ejecuta PCA y se pulsa **Agrupar y
+colorear** con K-means y cuatro grupos. Esa ejecución guarda la etiqueta de cada
+participante. PCA, Bivariado, Encuestas, Datos y Validación reutilizan las mismas
 etiquetas; no vuelven a formar clusters diferentes.
 
 - Cobertura: se toma cada columna `has_*`, se calcula qué porcentaje vale 1 y se
@@ -24,9 +25,11 @@ etiquetas; no vuelven a formar clusters diferentes.
 Los casos tampoco son elegidos automáticamente por una imagen. Después de formar
 los grupos se calculan las diferencias estandarizadas de sus variables. Se registra
 un caso cuando la diferencia es relevante para el objetivo, puede explicarse con
-variables originales, puede confirmarse en otra vista y tiene límites claros. La
-pestaña Validación muestra el criterio cuantitativo y permite abrir las variables en
-Bivariado, Profiling o Filtros.
+variables originales, puede confirmarse en otra vista y tiene límites claros. El
+caso nocturno se genera en Bivariado, el contraste de bienestar/riesgo se genera en
+Encuestas y la cobertura por perfil se genera en Datos. Validación se abre al final
+para mostrar el criterio cuantitativo, la procedencia y los límites. Si no existe una
+ejecución previa, Validación lo indica y no calcula perfiles automáticamente.
 
 En el gráfico nocturno se usa `log(1 + valor)` porque existen diferencias muy
 grandes entre participantes. Esta transformación comprime los valores extremos para
@@ -116,7 +119,7 @@ variables, el gráfico de descubrimiento y la vista que lo confirma.
 
 ## Preguntas que cada integrante debe responder sin leer
 
-1. ¿Qué columnas generan cada gráfico de Validación?
+1. ¿Qué columnas generan cada gráfico de los casos y en qué vista se obtiene?
 2. ¿Por qué se usa logaritmo en el gráfico nocturno?
 3. ¿Por qué se estandarizan las variables?
 4. ¿Qué diferencia existe entre seleccionar un punto y realizar una tarea analítica?
